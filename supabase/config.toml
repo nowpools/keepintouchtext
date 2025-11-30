@@ -1,1 +1,4 @@
 project_id = "byhoziuwsaxpemmyhauo"
+
+[functions.sync-google-contacts]
+verify_jwt = true

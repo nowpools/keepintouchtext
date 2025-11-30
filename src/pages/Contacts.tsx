@@ -1,8 +1,10 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { ContactListItem } from '@/components/ContactListItem';
 import { EmptyState } from '@/components/EmptyState';
-import { mockContacts } from '@/data/mockContacts';
+import { useAuth } from '@/hooks/useAuth';
+import { useContacts } from '@/hooks/useContacts';
 import { Contact, CadenceType, CADENCE_LABELS } from '@/types/contact';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -17,20 +19,30 @@ import {
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Users, Phone, Calendar, StickyNote, X } from 'lucide-react';
+import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 type SortOption = 'name' | 'lastContacted' | 'cadence';
 
 const Contacts = () => {
-  const [contacts, setContacts] = useState<Contact[]>(mockContacts);
+  const navigate = useNavigate();
+  const { user, isLoading: authLoading } = useAuth();
+  const { contacts, isLoading, isSyncing, syncGoogleContacts, updateContact } = useContacts();
+  
   const [searchQuery, setSearchQuery] = useState('');
   const [cadenceFilter, setCadenceFilter] = useState<CadenceType | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
 
   const filteredContacts = useMemo(() => {
     let result = [...contacts];
@@ -70,24 +82,47 @@ const Contacts = () => {
     return result;
   }, [contacts, searchQuery, cadenceFilter, sortBy]);
 
-  const handleCadenceChange = (contactId: string, newCadence: CadenceType) => {
-    setContacts(prev => 
-      prev.map(c => c.id === contactId ? { ...c, cadence: newCadence } : c)
-    );
+  const handleCadenceChange = async (contactId: string, newCadence: CadenceType) => {
+    await updateContact(contactId, { cadence: newCadence });
     if (selectedContact?.id === contactId) {
       setSelectedContact(prev => prev ? { ...prev, cadence: newCadence } : null);
     }
   };
 
+  if (authLoading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center min-h-[50vh]">
+          <div className="animate-pulse text-muted-foreground">Loading...</div>
+        </div>
+      </Layout>
+    );
+  }
+
   return (
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="space-y-1 animate-fade-in">
-          <h1 className="text-3xl font-bold">Contacts</h1>
-          <p className="text-muted-foreground">
-            {contacts.length} people in your network
-          </p>
+        <div className="flex items-start justify-between animate-fade-in">
+          <div className="space-y-1">
+            <h1 className="text-3xl font-bold">Contacts</h1>
+            <p className="text-muted-foreground">
+              {contacts.length} people in your network
+            </p>
+          </div>
+          <Button
+            onClick={syncGoogleContacts}
+            disabled={isSyncing}
+            variant="outline"
+            className="gap-2"
+          >
+            {isSyncing ? (
+              <RefreshCw className="w-4 h-4 animate-spin" />
+            ) : (
+              <Cloud className="w-4 h-4" />
+            )}
+            {isSyncing ? 'Syncing...' : 'Sync Contacts'}
+          </Button>
         </div>
 
         {/* Search & Filters */}
@@ -127,15 +162,28 @@ const Contacts = () => {
         </div>
 
         {/* Contact List */}
-        {filteredContacts.length === 0 ? (
+        {isLoading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="h-20 rounded-lg bg-secondary animate-pulse" />
+            ))}
+          </div>
+        ) : filteredContacts.length === 0 ? (
           <EmptyState
             icon={<Users className="w-8 h-8 text-primary" />}
-            title="No contacts found"
-            description={searchQuery 
-              ? "Try adjusting your search or filters"
-              : "Connect your Google Contacts to get started"}
+            title={contacts.length === 0 ? "No contacts yet" : "No contacts found"}
+            description={
+              contacts.length === 0 
+                ? "Sync your Google Contacts to get started"
+                : "Try adjusting your search or filters"
+            }
             action={
-              searchQuery ? (
+              contacts.length === 0 ? (
+                <Button onClick={syncGoogleContacts} disabled={isSyncing} className="gap-2">
+                  <Cloud className="w-4 h-4" />
+                  Sync Google Contacts
+                </Button>
+              ) : searchQuery ? (
                 <Button variant="outline" onClick={() => setSearchQuery('')}>
                   Clear search
                 </Button>
@@ -181,21 +229,23 @@ const Contacts = () => {
                     )}
                     <div>
                       <DialogTitle className="text-xl">{selectedContact.name}</DialogTitle>
-                      <div className="flex items-center gap-1.5 text-muted-foreground mt-1">
+                      <DialogDescription className="flex items-center gap-1.5 mt-1">
                         <Phone className="w-4 h-4" />
-                        <span>{selectedContact.phone}</span>
-                      </div>
+                        <span>{selectedContact.phone || 'No phone'}</span>
+                      </DialogDescription>
                     </div>
                   </div>
                 </DialogHeader>
 
                 <div className="space-y-4 mt-4">
                   {/* Labels */}
-                  <div className="flex flex-wrap gap-2">
-                    {selectedContact.labels.map(label => (
-                      <Badge key={label} variant="secondary">{label}</Badge>
-                    ))}
-                  </div>
+                  {selectedContact.labels.length > 0 && (
+                    <div className="flex flex-wrap gap-2">
+                      {selectedContact.labels.map(label => (
+                        <Badge key={label} variant="secondary">{label}</Badge>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Last Contacted */}
                   <div className="flex items-center gap-2 text-sm">
