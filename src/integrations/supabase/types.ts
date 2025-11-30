@@ -14,7 +14,60 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      contacts: {
+        Row: {
+          ai_draft: string | null
+          cadence: string | null
+          created_at: string
+          email: string | null
+          google_id: string | null
+          id: string
+          labels: string[] | null
+          last_contacted: string | null
+          name: string
+          next_due: string | null
+          notes: string | null
+          phone: string | null
+          photo: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          ai_draft?: string | null
+          cadence?: string | null
+          created_at?: string
+          email?: string | null
+          google_id?: string | null
+          id?: string
+          labels?: string[] | null
+          last_contacted?: string | null
+          name: string
+          next_due?: string | null
+          notes?: string | null
+          phone?: string | null
+          photo?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          ai_draft?: string | null
+          cadence?: string | null
+          created_at?: string
+          email?: string | null
+          google_id?: string | null
+          id?: string
+          labels?: string[] | null
+          last_contacted?: string | null
+          name?: string
+          next_due?: string | null
+          notes?: string | null
+          phone?: string | null
+          photo?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
