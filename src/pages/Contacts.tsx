@@ -3,12 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { ContactListItem } from '@/components/ContactListItem';
 import { EmptyState } from '@/components/EmptyState';
+import { SendTextDialog } from '@/components/SendTextDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
 import { Contact, CadenceType, CADENCE_LABELS } from '@/types/contact';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -23,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud } from 'lucide-react';
+import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 type SortOption = 'name' | 'lastContacted' | 'cadence';
@@ -31,18 +34,27 @@ type SortOption = 'name' | 'lastContacted' | 'cadence';
 const Contacts = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
-  const { contacts, isLoading, isSyncing, syncGoogleContacts, updateContact } = useContacts();
+  const { contacts, isLoading, isSyncing, syncGoogleContacts, updateContact, markAsContacted } = useContacts();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [cadenceFilter, setCadenceFilter] = useState<CadenceType | 'all'>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [editedNotes, setEditedNotes] = useState('');
+  const [sendTextContact, setSendTextContact] = useState<Contact | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
     }
   }, [user, authLoading, navigate]);
+
+  // Update editedNotes when selectedContact changes
+  useEffect(() => {
+    if (selectedContact) {
+      setEditedNotes(selectedContact.notes || '');
+    }
+  }, [selectedContact?.id]);
 
   const filteredContacts = useMemo(() => {
     let result = [...contacts];
@@ -87,6 +99,17 @@ const Contacts = () => {
     if (selectedContact?.id === contactId) {
       setSelectedContact(prev => prev ? { ...prev, cadence: newCadence } : null);
     }
+  };
+
+  const handleNotesBlur = async () => {
+    if (selectedContact && editedNotes !== selectedContact.notes) {
+      await updateContact(selectedContact.id, { notes: editedNotes });
+      setSelectedContact(prev => prev ? { ...prev, notes: editedNotes } : null);
+    }
+  };
+
+  const handleSendTextComplete = async (contactId: string) => {
+    await markAsContacted(contactId);
   };
 
   if (authLoading) {
@@ -238,6 +261,19 @@ const Contacts = () => {
                 </DialogHeader>
 
                 <div className="space-y-4 mt-4">
+                  {/* Send Text Button */}
+                  <Button
+                    variant="imessage"
+                    className="w-full"
+                    onClick={() => {
+                      setSendTextContact(selectedContact);
+                    }}
+                    disabled={!selectedContact.phone}
+                  >
+                    <MessageSquare className="w-4 h-4" />
+                    Send Text
+                  </Button>
+
                   {/* Labels */}
                   {selectedContact.labels.length > 0 && (
                     <div className="flex flex-wrap gap-2">
@@ -260,7 +296,7 @@ const Contacts = () => {
 
                   {/* Cadence */}
                   <div className="space-y-2">
-                    <label className="text-sm font-medium">Contact frequency</label>
+                    <Label className="text-sm font-medium">Contact frequency</Label>
                     <Select 
                       value={selectedContact.cadence} 
                       onValueChange={(v) => handleCadenceChange(selectedContact.id, v as CadenceType)}
@@ -276,23 +312,37 @@ const Contacts = () => {
                     </Select>
                   </div>
 
-                  {/* Notes */}
-                  {selectedContact.notes && (
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <StickyNote className="w-4 h-4" />
-                        <span>Notes</span>
-                      </div>
-                      <p className="text-sm text-muted-foreground p-3 bg-secondary rounded-lg">
-                        {selectedContact.notes}
-                      </p>
+                  {/* Notes - Editable */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <StickyNote className="w-4 h-4" />
+                      <span>Notes</span>
                     </div>
-                  )}
+                    <Textarea
+                      value={editedNotes}
+                      onChange={(e) => setEditedNotes(e.target.value)}
+                      onBlur={handleNotesBlur}
+                      placeholder="Add notes about this contact to help generate better AI messages..."
+                      className="min-h-[100px] resize-none"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Notes help the AI generate more personalized messages
+                    </p>
+                  </div>
                 </div>
               </>
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Send Text Dialog */}
+        <SendTextDialog
+          contact={sendTextContact}
+          open={!!sendTextContact}
+          onOpenChange={(open) => !open && setSendTextContact(null)}
+          onComplete={handleSendTextComplete}
+          showSnooze={false}
+        />
       </div>
     </Layout>
   );
