@@ -1,11 +1,22 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Heart, MessageCircle, Users, Calendar, CheckCircle, ArrowRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { useAuth } from '@/hooks/useAuth';
 import heroImage from '@/assets/hero-professional-texting.jpg';
 import professionalsImage from '@/assets/professionals-connecting.jpg';
 import mobileImage from '@/assets/professional-mobile.jpg';
 
 const Landing = () => {
+  const { user, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  const handleGetStarted = () => {
+    if (user) {
+      navigate('/dashboard');
+    } else {
+      navigate('/auth');
+    }
+  };
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
@@ -25,9 +36,9 @@ const Landing = () => {
               <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
                 Terms
               </Link>
-              <Link to="/auth">
-                <Button size="sm">Get Started</Button>
-              </Link>
+              <Button size="sm" onClick={handleGetStarted}>
+                {user ? 'Go to Dashboard' : 'Get Started'}
+              </Button>
             </div>
           </div>
         </div>
@@ -51,11 +62,9 @@ const Landing = () => {
                 by reminding you when it's time to reach out to friends, family, and colleagues.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/auth">
-                  <Button size="lg" className="gap-2 w-full sm:w-auto">
-                    Start Free <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
+                <Button size="lg" className="gap-2 w-full sm:w-auto" onClick={handleGetStarted}>
+                  {user ? 'Go to Dashboard' : 'Start Free'} <ArrowRight className="w-4 h-4" />
+                </Button>
                 <Button variant="outline" size="lg" className="gap-2">
                   <Heart className="w-4 h-4" />
                   See How It Works
@@ -184,11 +193,9 @@ const Landing = () => {
                 <p className="text-primary-foreground/80">
                   Join thousands of professionals who use Keep In Touch to maintain meaningful connections.
                 </p>
-                <Link to="/auth">
-                  <Button size="lg" variant="secondary" className="gap-2">
-                    Get Started Free <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </Link>
+                <Button size="lg" variant="secondary" className="gap-2" onClick={handleGetStarted}>
+                  {user ? 'Go to Dashboard' : 'Get Started Free'} <ArrowRight className="w-4 h-4" />
+                </Button>
               </div>
               <div className="hidden md:block">
                 <img 
@@ -220,7 +227,7 @@ const Landing = () => {
             <div>
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><Link to="/auth" className="hover:text-foreground transition-colors">Get Started</Link></li>
+                <li><button onClick={handleGetStarted} className="hover:text-foreground transition-colors">Get Started</button></li>
                 <li><a href="#features" className="hover:text-foreground transition-colors">Features</a></li>
               </ul>
             </div>
