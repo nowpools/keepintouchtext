@@ -5,6 +5,87 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+async function fetchLinkedInContent(linkedinUrl: string): Promise<string | null> {
+  try {
+    console.log("Fetching LinkedIn content from:", linkedinUrl);
+    
+    // Fetch the LinkedIn page
+    const response = await fetch(linkedinUrl, {
+      headers: {
+        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+        "Accept-Language": "en-US,en;q=0.5",
+      },
+    });
+
+    if (!response.ok) {
+      console.log("LinkedIn fetch failed:", response.status);
+      return null;
+    }
+
+    const html = await response.text();
+    
+    // Extract useful content from the HTML
+    const extracted: string[] = [];
+    
+    // Try to extract the title (usually contains name and headline)
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch) {
+      const title = titleMatch[1].replace(/\s*\|\s*LinkedIn.*$/i, "").trim();
+      if (title && !title.includes("Sign Up") && !title.includes("Log In")) {
+        extracted.push(`Profile headline: ${title}`);
+      }
+    }
+
+    // Extract meta description (often contains bio/summary)
+    const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
+    if (descMatch) {
+      const desc = descMatch[1].trim();
+      if (desc && desc.length > 20 && !desc.includes("LinkedIn")) {
+        extracted.push(`Bio: ${desc}`);
+      }
+    }
+
+    // Extract og:description (alternative bio source)
+    const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
+    if (ogDescMatch && !extracted.some(e => e.includes(ogDescMatch[1]))) {
+      const ogDesc = ogDescMatch[1].trim();
+      if (ogDesc && ogDesc.length > 20) {
+        extracted.push(`Summary: ${ogDesc}`);
+      }
+    }
+
+    // Try to find job title patterns
+    const jobPatterns = [
+      /(?:currently|working as|position)[:\s]+([^<\n]+)/gi,
+      /(?:founder|ceo|director|manager|engineer|developer|designer|consultant|analyst)[^<\n]{0,50}/gi,
+    ];
+    
+    for (const pattern of jobPatterns) {
+      const matches = html.match(pattern);
+      if (matches && matches.length > 0) {
+        const unique = [...new Set(matches.map(m => m.trim().slice(0, 100)))];
+        if (unique.length > 0 && unique[0].length > 5) {
+          extracted.push(`Role info: ${unique.slice(0, 2).join(", ")}`);
+          break;
+        }
+      }
+    }
+
+    if (extracted.length === 0) {
+      console.log("No useful content extracted from LinkedIn");
+      return null;
+    }
+
+    const content = extracted.join("\n");
+    console.log("Extracted LinkedIn content:", content.slice(0, 200));
+    return content;
+  } catch (error) {
+    console.error("Error fetching LinkedIn:", error);
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -19,52 +100,85 @@ serve(async (req) => {
     }
 
     // Build context from contact info
-    let context = `You are helping write a friendly text message to ${contactName}.`;
+    let context = "";
+    let linkedinContent: string | null = null;
     
-    if (contactNotes) {
-      context += ` Here are some notes about them: ${contactNotes}`;
-    }
-
+    // Fetch LinkedIn content if URL provided
     if (linkedinUrl) {
-      context += ` They have a LinkedIn profile at ${linkedinUrl}. If you can infer anything about their profession or interests from this, you can reference it naturally.`;
+      linkedinContent = await fetchLinkedInContent(linkedinUrl);
+    }
+    
+    // Build rich context
+    const contextParts: string[] = [];
+    
+    if (contactNotes && contactNotes.trim()) {
+      contextParts.push(`Personal notes about ${contactName}: "${contactNotes}"`);
+    }
+    
+    if (linkedinContent) {
+      contextParts.push(`LinkedIn profile info for ${contactName}:\n${linkedinContent}`);
     }
     
     if (lastContacted) {
       const lastDate = new Date(lastContacted);
       const daysSince = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
       if (daysSince > 0) {
-        context += ` It's been about ${daysSince} days since you last messaged them.`;
+        if (daysSince === 1) {
+          contextParts.push("You texted them yesterday.");
+        } else if (daysSince < 7) {
+          contextParts.push(`You last texted them ${daysSince} days ago.`);
+        } else if (daysSince < 30) {
+          const weeks = Math.floor(daysSince / 7);
+          contextParts.push(`It's been about ${weeks} week${weeks > 1 ? 's' : ''} since you last texted.`);
+        } else {
+          const months = Math.floor(daysSince / 30);
+          contextParts.push(`It's been ${months} month${months > 1 ? 's' : ''} since you last reached out.`);
+        }
       }
+    }
+
+    if (contextParts.length > 0) {
+      context = `\n\nContext about this person:\n${contextParts.join("\n\n")}`;
     }
 
     // Build tone and length instructions
     const toneMap: Record<string, string> = {
-      casual: "casual and relaxed, like texting a friend",
-      friendly: "warm and friendly, showing genuine interest",
-      professional: "polite and professional, but still personable",
+      casual: "super casual and chill, like you're texting your buddy. Use lowercase, maybe skip some punctuation, keep it real",
+      friendly: "warm and genuine, like catching up with a good friend you haven't seen in a bit",
+      professional: "friendly but professional, the kind of text you'd send to a respected colleague",
     };
 
     const lengthMap: Record<string, string> = {
-      short: "Keep it brief - 1-2 sentences max.",
-      medium: "Keep it moderate - 2-3 sentences.",
-      long: "Make it a bit longer - 3-4 sentences with more detail.",
+      short: "Keep it super short - just 1 sentence, maybe 2 max. Get to the point.",
+      medium: "Keep it natural length - 2-3 sentences feels right.",
+      long: "A bit more detail is fine - 3-4 sentences to really connect.",
     };
 
     const toneInstruction = toneMap[tone] || toneMap.friendly;
     const lengthInstruction = lengthMap[length] || lengthMap.medium;
 
-    const systemPrompt = `${context}
+    const systemPrompt = `You write text messages for someone reaching out to people they know. Your job is to write ONE text message that sounds completely natural and human.
+${context}
 
-Write a text message that is ${toneInstruction}.
-${lengthInstruction}
+Style: ${toneInstruction}
+Length: ${lengthInstruction}
 
-Rules:
-- Do NOT use any greeting like "Hey" or "Hi" at the start - just jump right into the message
-- Do NOT use the person's name in the message
-- Make it feel natural and genuine, not like a template
-- If there are notes about the person, reference something specific from them
-- Don't be overly enthusiastic with exclamation marks
-- Write ONLY the message text, nothing else`;
+Critical rules:
+- NEVER start with "Hey" or "Hi" or any greeting - just dive right in
+- NEVER use their name in the message
+- NO emojis unless the tone is casual
+- Sound like a real person, not a bot or assistant
+- If there are notes about them, weave in something specific naturally (don't force it)
+- If there's LinkedIn info, you can reference their work/interests naturally but don't be creepy about it
+- Don't be overly enthusiastic or use too many exclamation marks
+- Match how real people actually text - contractions, natural flow
+- Output ONLY the message text, nothing else
+
+Examples of good messages:
+- "Been thinking about that project you mentioned - how's it going?"
+- "saw your post about the conference, looked awesome. we should grab coffee and you can tell me about it"
+- "Hope the new role is treating you well! Would love to catch up sometime"
+- "Random but I just saw something that reminded me of our chat about startups. Miss those convos"`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -76,10 +190,10 @@ Rules:
         model: "google/gemini-2.5-flash",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: "Generate a text message now." },
+          { role: "user", content: "Write a text message now." },
         ],
         max_tokens: 200,
-        temperature: 0.8,
+        temperature: 0.9,
       }),
     });
 
