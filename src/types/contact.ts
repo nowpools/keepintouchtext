@@ -29,11 +29,14 @@ export interface CadenceSettings {
   yearly: number;
 }
 
+export type SortOrderType = 'alphabetical' | 'random';
+
 export interface AppSettings {
   maxDailyContacts: number;
   cadenceSettings: CadenceSettings;
   aiTone: 'casual' | 'professional' | 'friendly';
   aiLength: 'short' | 'medium' | 'long';
+  sortOrder: SortOrderType;
 }
 
 export const DEFAULT_CADENCE_DAYS: CadenceSettings = {

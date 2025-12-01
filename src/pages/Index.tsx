@@ -6,15 +6,25 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
-import { DailyContact, DEFAULT_CADENCE_DAYS } from '@/types/contact';
+import { useCategorySettings } from '@/hooks/useCategorySettings';
+import { useAppSettings } from '@/hooks/useAppSettings';
+import { DailyContact } from '@/types/contact';
 import { format, differenceInDays } from 'date-fns';
 import { Sparkles, RefreshCw, Cloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+// Seeded random for consistent daily randomization
+const seededRandom = (seed: number) => {
+  const x = Math.sin(seed) * 10000;
+  return x - Math.floor(x);
+};
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
   const { contacts, isLoading, isSyncing, syncGoogleContacts, markAsContacted } = useContacts();
+  const { categorySettings } = useCategorySettings();
+  const { settings, isLoaded: settingsLoaded } = useAppSettings();
   
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set());
@@ -25,14 +35,29 @@ const Index = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Calculate today's contacts based on cadence and last contacted
+  // Build a map of category name to cadence days
+  const categoryCadenceMap = useMemo(() => {
+    const map: Record<string, number> = {};
+    categorySettings.forEach(cat => {
+      map[cat.label_name] = cat.cadence_days;
+    });
+    return map;
+  }, [categorySettings]);
+
+  // Calculate today's contacts based on category cadence and last contacted
   const todaysContacts: DailyContact[] = useMemo(() => {
     const today = new Date();
+    const todaySeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
     
-    return contacts
+    const dueContacts = contacts
       .map(contact => {
+        const category = contact.labels[0];
+        // Use category cadence if available, otherwise fall back to 30 days
+        const cadenceDays = category && categoryCadenceMap[category] 
+          ? categoryCadenceMap[category] 
+          : 30;
+        
         const lastContacted = contact.lastContacted;
-        const cadenceDays = DEFAULT_CADENCE_DAYS[contact.cadence];
         
         // Calculate if contact is due
         let isDue = false;
@@ -50,9 +75,24 @@ const Index = () => {
           isSnoozed: snoozedIds.has(contact.id),
         };
       })
-      .filter(c => c.isDue && !c.isSnoozed)
-      .slice(0, 5); // Max 5 contacts per day
-  }, [contacts, completedIds, snoozedIds]);
+      .filter(c => c.isDue && !c.isSnoozed);
+
+    // Sort based on user preference
+    let sortedContacts: typeof dueContacts;
+    if (settings.sortOrder === 'random') {
+      // Use seeded random for consistent daily order
+      sortedContacts = [...dueContacts].sort((a, b) => {
+        const aRand = seededRandom(todaySeed + a.id.charCodeAt(0));
+        const bRand = seededRandom(todaySeed + b.id.charCodeAt(0));
+        return aRand - bRand;
+      });
+    } else {
+      // Alphabetical
+      sortedContacts = [...dueContacts].sort((a, b) => a.name.localeCompare(b.name));
+    }
+
+    return sortedContacts.slice(0, settings.maxDailyContacts);
+  }, [contacts, completedIds, snoozedIds, categoryCadenceMap, settings.maxDailyContacts, settings.sortOrder]);
 
   const handleComplete = async (id: string) => {
     setCompletedIds(prev => new Set(prev).add(id));
@@ -71,7 +111,7 @@ const Index = () => {
   const completedCount = todaysContacts.filter(c => c.isCompleted).length;
   const activeContacts = todaysContacts.filter(c => !c.isSnoozed);
 
-  if (authLoading) {
+  if (authLoading || !settingsLoaded) {
     return (
       <Layout>
         <div className="flex items-center justify-center min-h-[50vh]">

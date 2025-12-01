@@ -4,14 +4,17 @@ import { Layout } from '@/components/Layout';
 import { ContactListItem } from '@/components/ContactListItem';
 import { EmptyState } from '@/components/EmptyState';
 import { SendTextDialog } from '@/components/SendTextDialog';
+import { BulkCategoryDialog } from '@/components/BulkCategoryDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
+import { useCategorySettings } from '@/hooks/useCategorySettings';
 import { Contact, CadenceType, CADENCE_LABELS } from '@/types/contact';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -26,23 +29,31 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin } from 'lucide-react';
+import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { useToast } from '@/hooks/use-toast';
 
-type SortOption = 'name' | 'lastContacted' | 'cadence';
+type SortOption = 'name' | 'lastContacted' | 'category';
 
 const Contacts = () => {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
   const { contacts, isLoading, isSyncing, syncGoogleContacts, updateContact, markAsContacted } = useContacts();
+  const { categorySettings, isLoading: categoriesLoading } = useCategorySettings();
   
   const [searchQuery, setSearchQuery] = useState('');
-  const [cadenceFilter, setCadenceFilter] = useState<CadenceType | 'all'>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [editedNotes, setEditedNotes] = useState('');
   const [editedLinkedinUrl, setEditedLinkedinUrl] = useState('');
   const [sendTextContact, setSendTextContact] = useState<Contact | null>(null);
+  
+  // Bulk selection state
+  const [isSelectionMode, setIsSelectionMode] = useState(false);
+  const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
+  const [showBulkCategoryDialog, setShowBulkCategoryDialog] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -58,6 +69,14 @@ const Contacts = () => {
     }
   }, [selectedContact?.id]);
 
+  // Get unique categories from contacts and settings
+  const availableCategories = useMemo(() => {
+    const categoriesFromSettings = categorySettings.map(c => c.label_name);
+    const categoriesFromContacts = contacts.flatMap(c => c.labels);
+    const allCategories = [...new Set([...categoriesFromSettings, ...categoriesFromContacts])];
+    return allCategories.filter(Boolean);
+  }, [contacts, categorySettings]);
+
   const filteredContacts = useMemo(() => {
     let result = [...contacts];
 
@@ -71,9 +90,9 @@ const Contacts = () => {
       );
     }
 
-    // Cadence filter
-    if (cadenceFilter !== 'all') {
-      result = result.filter(c => c.cadence === cadenceFilter);
+    // Category filter
+    if (categoryFilter !== 'all') {
+      result = result.filter(c => c.labels.includes(categoryFilter));
     }
 
     // Sort
@@ -85,21 +104,29 @@ const Contacts = () => {
           const aDate = a.lastContacted?.getTime() || 0;
           const bDate = b.lastContacted?.getTime() || 0;
           return aDate - bDate; // Oldest first
-        case 'cadence':
-          const order: CadenceType[] = ['daily', 'weekly', 'monthly', 'quarterly', 'twice-yearly', 'yearly'];
-          return order.indexOf(a.cadence) - order.indexOf(b.cadence);
+        case 'category':
+          const aCategory = a.labels[0] || 'zzz';
+          const bCategory = b.labels[0] || 'zzz';
+          return aCategory.localeCompare(bCategory);
         default:
           return 0;
       }
     });
 
     return result;
-  }, [contacts, searchQuery, cadenceFilter, sortBy]);
+  }, [contacts, searchQuery, categoryFilter, sortBy]);
 
   const handleCadenceChange = async (contactId: string, newCadence: CadenceType) => {
     await updateContact(contactId, { cadence: newCadence });
     if (selectedContact?.id === contactId) {
       setSelectedContact(prev => prev ? { ...prev, cadence: newCadence } : null);
+    }
+  };
+
+  const handleCategoryChange = async (contactId: string, categoryName: string) => {
+    await updateContact(contactId, { labels: [categoryName] });
+    if (selectedContact?.id === contactId) {
+      setSelectedContact(prev => prev ? { ...prev, labels: [categoryName] } : null);
     }
   };
 
@@ -119,6 +146,54 @@ const Contacts = () => {
 
   const handleSendTextComplete = async (contactId: string) => {
     await markAsContacted(contactId);
+  };
+
+  // Bulk selection handlers
+  const toggleSelectionMode = () => {
+    setIsSelectionMode(!isSelectionMode);
+    setSelectedContactIds(new Set());
+  };
+
+  const toggleContactSelection = (contactId: string, selected: boolean) => {
+    setSelectedContactIds(prev => {
+      const newSet = new Set(prev);
+      if (selected) {
+        newSet.add(contactId);
+      } else {
+        newSet.delete(contactId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAll = () => {
+    setSelectedContactIds(new Set(filteredContacts.map(c => c.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedContactIds(new Set());
+  };
+
+  const handleBulkCategoryApply = async (categoryName: string) => {
+    const selectedIds = Array.from(selectedContactIds);
+    let successCount = 0;
+
+    for (const id of selectedIds) {
+      try {
+        await updateContact(id, { labels: [categoryName] });
+        successCount++;
+      } catch (error) {
+        console.error('Error updating contact:', error);
+      }
+    }
+
+    toast({
+      title: 'Categories applied',
+      description: `Updated ${successCount} of ${selectedIds.length} contacts to "${categoryName}"`,
+    });
+
+    setSelectedContactIds(new Set());
+    setIsSelectionMode(false);
   };
 
   if (authLoading) {
@@ -142,41 +217,92 @@ const Contacts = () => {
               {contacts.length} people in your network
             </p>
           </div>
-          <Button
-            onClick={syncGoogleContacts}
-            disabled={isSyncing}
-            variant="outline"
-            className="gap-2"
-          >
-            {isSyncing ? (
-              <RefreshCw className="w-4 h-4 animate-spin" />
-            ) : (
-              <Cloud className="w-4 h-4" />
-            )}
-            {isSyncing ? 'Syncing...' : 'Sync Contacts'}
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={toggleSelectionMode}
+              variant={isSelectionMode ? "secondary" : "outline"}
+              className="gap-2"
+            >
+              {isSelectionMode ? (
+                <>
+                  <X className="w-4 h-4" />
+                  Cancel
+                </>
+              ) : (
+                <>
+                  <Tag className="w-4 h-4" />
+                  Bulk Edit
+                </>
+              )}
+            </Button>
+            <Button
+              onClick={syncGoogleContacts}
+              disabled={isSyncing}
+              variant="outline"
+              className="gap-2"
+            >
+              {isSyncing ? (
+                <RefreshCw className="w-4 h-4 animate-spin" />
+              ) : (
+                <Cloud className="w-4 h-4" />
+              )}
+              {isSyncing ? 'Syncing...' : 'Sync Contacts'}
+            </Button>
+          </div>
         </div>
+
+        {/* Bulk Action Bar */}
+        {isSelectionMode && (
+          <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border border-border animate-fade-in">
+            <div className="flex items-center gap-4">
+              <Checkbox
+                checked={selectedContactIds.size === filteredContacts.length && filteredContacts.length > 0}
+                onCheckedChange={(checked) => checked ? selectAll() : deselectAll()}
+              />
+              <span className="text-sm font-medium">
+                {selectedContactIds.size} selected
+              </span>
+              {selectedContactIds.size > 0 && (
+                <Button
+                  variant="link"
+                  className="text-sm p-0 h-auto"
+                  onClick={deselectAll}
+                >
+                  Clear selection
+                </Button>
+              )}
+            </div>
+            <Button
+              onClick={() => setShowBulkCategoryDialog(true)}
+              disabled={selectedContactIds.size === 0}
+              className="gap-2"
+            >
+              <Tag className="w-4 h-4" />
+              Apply Category
+            </Button>
+          </div>
+        )}
 
         {/* Search & Filters */}
         <div className="flex flex-col sm:flex-row gap-3 animate-fade-in">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
-              placeholder="Search by name, phone, or label..."
+              placeholder="Search by name, phone, or category..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="pl-9"
             />
           </div>
 
-          <Select value={cadenceFilter} onValueChange={(v) => setCadenceFilter(v as CadenceType | 'all')}>
-            <SelectTrigger className="w-full sm:w-40">
-              <SelectValue placeholder="Cadence" />
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-full sm:w-44">
+              <SelectValue placeholder="Category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All cadences</SelectItem>
-              {Object.entries(CADENCE_LABELS).map(([key, label]) => (
-                <SelectItem key={key} value={key}>{label}</SelectItem>
+              <SelectItem value="all">All categories</SelectItem>
+              {availableCategories.map((category) => (
+                <SelectItem key={category} value={category}>{category}</SelectItem>
               ))}
             </SelectContent>
           </Select>
@@ -188,7 +314,7 @@ const Contacts = () => {
             <SelectContent>
               <SelectItem value="name">Name</SelectItem>
               <SelectItem value="lastContacted">Last contacted</SelectItem>
-              <SelectItem value="cadence">Cadence</SelectItem>
+              <SelectItem value="category">Category</SelectItem>
             </SelectContent>
           </Select>
         </div>
@@ -232,7 +358,10 @@ const Contacts = () => {
               >
                 <ContactListItem 
                   contact={contact} 
-                  onClick={setSelectedContact}
+                  onClick={(c) => !isSelectionMode && setSelectedContact(c)}
+                  isSelectable={isSelectionMode}
+                  isSelected={selectedContactIds.has(contact.id)}
+                  onSelectChange={(selected) => toggleContactSelection(contact.id, selected)}
                 />
               </div>
             ))}
@@ -283,14 +412,25 @@ const Contacts = () => {
                     Send Text
                   </Button>
 
-                  {/* Labels */}
-                  {selectedContact.labels.length > 0 && (
-                    <div className="flex flex-wrap gap-2">
-                      {selectedContact.labels.map(label => (
-                        <Badge key={label} variant="secondary">{label}</Badge>
-                      ))}
-                    </div>
-                  )}
+                  {/* Category */}
+                  <div className="space-y-2">
+                    <Label className="text-sm font-medium">Category</Label>
+                    <Select 
+                      value={selectedContact.labels[0] || ''} 
+                      onValueChange={(v) => handleCategoryChange(selectedContact.id, v)}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select a category" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {categorySettings.map((category) => (
+                          <SelectItem key={category.id} value={category.label_name}>
+                            {category.label_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
                   {/* Last Contacted */}
                   <div className="flex items-center gap-2 text-sm">
@@ -301,24 +441,6 @@ const Contacts = () => {
                         ? formatDistanceToNow(selectedContact.lastContacted, { addSuffix: true })
                         : 'Never'}
                     </span>
-                  </div>
-
-                  {/* Cadence */}
-                  <div className="space-y-2">
-                    <Label className="text-sm font-medium">Contact frequency</Label>
-                    <Select 
-                      value={selectedContact.cadence} 
-                      onValueChange={(v) => handleCadenceChange(selectedContact.id, v as CadenceType)}
-                    >
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {Object.entries(CADENCE_LABELS).map(([key, label]) => (
-                          <SelectItem key={key} value={key}>{label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
 
                   {/* Notes - Editable */}
@@ -369,6 +491,15 @@ const Contacts = () => {
           onOpenChange={(open) => !open && setSendTextContact(null)}
           onComplete={handleSendTextComplete}
           showSnooze={false}
+        />
+
+        {/* Bulk Category Dialog */}
+        <BulkCategoryDialog
+          open={showBulkCategoryDialog}
+          onOpenChange={setShowBulkCategoryDialog}
+          categories={categorySettings}
+          selectedCount={selectedContactIds.size}
+          onApply={handleBulkCategoryApply}
         />
       </div>
     </Layout>
