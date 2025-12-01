@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { DailyContact, CADENCE_LABELS } from '@/types/contact';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
@@ -12,10 +12,12 @@ import {
   Calendar,
   Sparkles,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  RefreshCw
 } from 'lucide-react';
-import { format, formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { useAIMessage } from '@/hooks/useAIMessage';
 
 interface ContactCardProps {
   contact: DailyContact;
@@ -35,16 +37,34 @@ export const ContactCard = ({
   const [isExpanded, setIsExpanded] = useState(true);
   const [draft, setDraft] = useState(contact.aiDraft || '');
   const [showConfirm, setShowConfirm] = useState(false);
+  const { generateMessage, isGenerating } = useAIMessage();
+
+  // Auto-generate message on mount if no draft exists
+  useEffect(() => {
+    if (!draft && isExpanded) {
+      handleGenerateMessage();
+    }
+  }, []);
+
+  const handleGenerateMessage = async () => {
+    const message = await generateMessage(
+      contact.name,
+      contact.notes,
+      contact.lastContacted
+    );
+    
+    if (message) {
+      setDraft(message);
+      onUpdateDraft(contact.id, message);
+    }
+  };
 
   const handleOpeniMessage = () => {
     const encodedMessage = encodeURIComponent(draft);
     const phoneNumber = contact.phone.replace(/\D/g, '');
-    
-    // Try iMessage first, fallback to SMS
     const iMessageUrl = `sms:${phoneNumber}&body=${encodedMessage}`;
     window.open(iMessageUrl, '_blank');
     
-    // Show confirmation dialog after a delay
     setTimeout(() => setShowConfirm(true), 1000);
   };
 
@@ -200,15 +220,32 @@ export const ContactCard = ({
 
           {/* AI Draft */}
           <div className="space-y-2">
-            <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Sparkles className="w-4 h-4 text-primary" />
-              <span>Suggested message</span>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                <Sparkles className="w-4 h-4 text-primary" />
+                <span>Suggested message</span>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleGenerateMessage();
+                }}
+                disabled={isGenerating}
+                className="h-7 text-xs"
+              >
+                <RefreshCw className={`w-3 h-3 mr-1 ${isGenerating ? 'animate-spin' : ''}`} />
+                {isGenerating ? 'Generating...' : 'Regenerate'}
+              </Button>
             </div>
             <Textarea
               value={draft}
               onChange={(e) => handleDraftChange(e.target.value)}
               className="min-h-[100px] resize-none bg-card"
-              placeholder="Write your message..."
+              placeholder={isGenerating ? "Generating message..." : "Write your message..."}
+              disabled={isGenerating}
+              onClick={(e) => e.stopPropagation()}
             />
           </div>
 
@@ -218,6 +255,7 @@ export const ContactCard = ({
               variant="imessage"
               className="flex-1"
               onClick={handleOpeniMessage}
+              disabled={!draft || !contact.phone}
             >
               <MessageSquare className="w-4 h-4" />
               Open in iMessage
