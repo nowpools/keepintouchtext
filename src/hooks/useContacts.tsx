@@ -124,6 +124,7 @@ export function useContacts() {
       if (updates.cadence !== undefined) dbUpdates.cadence = updates.cadence;
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
       if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl;
+      if (updates.labels !== undefined) dbUpdates.labels = updates.labels;
       if (updates.lastContacted !== undefined) {
         dbUpdates.last_contacted = updates.lastContacted?.toISOString() || null;
       }

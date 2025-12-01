@@ -1,5 +1,6 @@
-import { Contact, CADENCE_LABELS } from '@/types/contact';
+import { Contact } from '@/types/contact';
 import { Badge } from '@/components/ui/badge';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Phone, Calendar } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -7,21 +8,45 @@ import { cn } from '@/lib/utils';
 interface ContactListItemProps {
   contact: Contact;
   onClick: (contact: Contact) => void;
+  isSelectable?: boolean;
+  isSelected?: boolean;
+  onSelectChange?: (selected: boolean) => void;
 }
 
-export const ContactListItem = ({ contact, onClick }: ContactListItemProps) => {
+export const ContactListItem = ({ 
+  contact, 
+  onClick, 
+  isSelectable = false,
+  isSelected = false,
+  onSelectChange,
+}: ContactListItemProps) => {
   const isOverdue = contact.nextDue <= new Date();
+  const primaryCategory = contact.labels[0];
+
+  const handleCheckboxClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+  };
 
   return (
     <div 
       className={cn(
         "p-4 rounded-lg bg-card border border-border card-shadow cursor-pointer",
         "hover:card-shadow-hover hover:border-primary/20 transition-all duration-200",
-        isOverdue && "border-l-4 border-l-accent"
+        isOverdue && "border-l-4 border-l-accent",
+        isSelected && "border-primary bg-primary/5"
       )}
       onClick={() => onClick(contact)}
     >
       <div className="flex items-center gap-4">
+        {isSelectable && (
+          <div onClick={handleCheckboxClick}>
+            <Checkbox
+              checked={isSelected}
+              onCheckedChange={(checked) => onSelectChange?.(!!checked)}
+            />
+          </div>
+        )}
+        
         {contact.photo ? (
           <img 
             src={contact.photo} 
@@ -44,14 +69,14 @@ export const ContactListItem = ({ contact, onClick }: ContactListItemProps) => {
           <div className="flex items-center gap-3 text-sm text-muted-foreground mt-0.5">
             <div className="flex items-center gap-1">
               <Phone className="w-3.5 h-3.5" />
-              <span className="truncate">{contact.phone}</span>
+              <span className="truncate">{contact.phone || 'No phone'}</span>
             </div>
           </div>
         </div>
 
         <div className="flex flex-col items-end gap-2">
           <Badge variant="secondary" className="text-xs">
-            {CADENCE_LABELS[contact.cadence]}
+            {primaryCategory || 'Uncategorized'}
           </Badge>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Calendar className="w-3 h-3" />
