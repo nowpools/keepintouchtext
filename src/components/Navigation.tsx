@@ -1,6 +1,9 @@
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Settings, Heart } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, Heart, LogOut } from 'lucide-react';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { useNavigate } from 'react-router-dom';
 
 const navItems = [
   { to: '/dashboard', label: 'Today', icon: LayoutDashboard },
@@ -9,6 +12,14 @@ const navItems = [
 ];
 
 export const Navigation = () => {
+  const { signOut } = useAuth();
+  const navigate = useNavigate();
+
+  const handleSignOut = async () => {
+    await signOut();
+    navigate('/');
+  };
+
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 md:relative md:bottom-auto">
       <div className="glass border-t md:border-t-0 md:border-b border-border">
@@ -36,6 +47,28 @@ export const Navigation = () => {
                 <span className="text-xs md:text-sm">{item.label}</span>
               </NavLink>
             ))}
+
+            {/* Sign out button - desktop */}
+            <div className="hidden md:flex ml-auto">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSignOut}
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <LogOut className="w-4 h-4 mr-2" />
+                Sign Out
+              </Button>
+            </div>
+
+            {/* Sign out button - mobile */}
+            <button
+              onClick={handleSignOut}
+              className="flex flex-col items-center gap-1 px-4 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:hidden"
+            >
+              <LogOut className="w-5 h-5" />
+              <span className="text-xs">Sign Out</span>
+            </button>
           </div>
         </div>
       </div>
