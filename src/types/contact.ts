@@ -8,6 +8,7 @@ export interface Contact {
   photo?: string;
   labels: string[];
   notes: string;
+  linkedinUrl?: string;
   cadence: CadenceType;
   lastContacted: Date | null;
   nextDue: Date;

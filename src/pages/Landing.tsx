@@ -36,6 +36,11 @@ const Landing = () => {
               <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
                 Terms
               </Link>
+              {!user && (
+                <Link to="/auth" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
+                  Login
+                </Link>
+              )}
               <Button size="sm" onClick={handleGetStarted}>
                 {user ? 'Go to Dashboard' : 'Get Started'}
               </Button>

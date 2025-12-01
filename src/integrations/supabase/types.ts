@@ -24,6 +24,7 @@ export type Database = {
           id: string
           labels: string[] | null
           last_contacted: string | null
+          linkedin_url: string | null
           name: string
           next_due: string | null
           notes: string | null
@@ -41,6 +42,7 @@ export type Database = {
           id?: string
           labels?: string[] | null
           last_contacted?: string | null
+          linkedin_url?: string | null
           name: string
           next_due?: string | null
           notes?: string | null
@@ -58,6 +60,7 @@ export type Database = {
           id?: string
           labels?: string[] | null
           last_contacted?: string | null
+          linkedin_url?: string | null
           name?: string
           next_due?: string | null
           notes?: string | null

@@ -26,7 +26,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare } from 'lucide-react';
+import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 type SortOption = 'name' | 'lastContacted' | 'cadence';
@@ -41,6 +41,7 @@ const Contacts = () => {
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [editedNotes, setEditedNotes] = useState('');
+  const [editedLinkedinUrl, setEditedLinkedinUrl] = useState('');
   const [sendTextContact, setSendTextContact] = useState<Contact | null>(null);
 
   useEffect(() => {
@@ -49,10 +50,11 @@ const Contacts = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Update editedNotes when selectedContact changes
+  // Update editedNotes and editedLinkedinUrl when selectedContact changes
   useEffect(() => {
     if (selectedContact) {
       setEditedNotes(selectedContact.notes || '');
+      setEditedLinkedinUrl(selectedContact.linkedinUrl || '');
     }
   }, [selectedContact?.id]);
 
@@ -105,6 +107,13 @@ const Contacts = () => {
     if (selectedContact && editedNotes !== selectedContact.notes) {
       await updateContact(selectedContact.id, { notes: editedNotes });
       setSelectedContact(prev => prev ? { ...prev, notes: editedNotes } : null);
+    }
+  };
+
+  const handleLinkedinBlur = async () => {
+    if (selectedContact && editedLinkedinUrl !== (selectedContact.linkedinUrl || '')) {
+      await updateContact(selectedContact.id, { linkedinUrl: editedLinkedinUrl });
+      setSelectedContact(prev => prev ? { ...prev, linkedinUrl: editedLinkedinUrl } : null);
     }
   };
 
@@ -327,6 +336,24 @@ const Contacts = () => {
                     />
                     <p className="text-xs text-muted-foreground">
                       Notes help the AI generate more personalized messages
+                    </p>
+                  </div>
+
+                  {/* LinkedIn URL */}
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                      <Linkedin className="w-4 h-4" />
+                      <span>LinkedIn Profile</span>
+                    </div>
+                    <Input
+                      value={editedLinkedinUrl}
+                      onChange={(e) => setEditedLinkedinUrl(e.target.value)}
+                      onBlur={handleLinkedinBlur}
+                      placeholder="https://linkedin.com/in/username"
+                      type="url"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      LinkedIn helps the AI reference recent posts and professional context
                     </p>
                   </div>
                 </div>
