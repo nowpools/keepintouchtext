@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 import { LayoutDashboard, Users, Settings, Heart } from 'lucide-react';
 
 const navItems = [
-  { to: '/', label: 'Today', icon: LayoutDashboard },
+  { to: '/dashboard', label: 'Today', icon: LayoutDashboard },
   { to: '/contacts', label: 'Contacts', icon: Users },
   { to: '/settings', label: 'Settings', icon: Settings },
 ];
