@@ -11,7 +11,7 @@ serve(async (req) => {
   }
 
   try {
-    const { contactName, contactNotes, lastContacted, tone, length } = await req.json();
+    const { contactName, contactNotes, linkedinUrl, lastContacted, tone, length } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -23,6 +23,10 @@ serve(async (req) => {
     
     if (contactNotes) {
       context += ` Here are some notes about them: ${contactNotes}`;
+    }
+
+    if (linkedinUrl) {
+      context += ` They have a LinkedIn profile at ${linkedinUrl}. If you can infer anything about their profession or interests from this, you can reference it naturally.`;
     }
     
     if (lastContacted) {

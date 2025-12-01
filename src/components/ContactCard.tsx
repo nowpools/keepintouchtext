@@ -50,7 +50,8 @@ export const ContactCard = ({
     const message = await generateMessage(
       contact.name,
       contact.notes,
-      contact.lastContacted
+      contact.lastContacted,
+      contact.linkedinUrl
     );
     
     if (message) {

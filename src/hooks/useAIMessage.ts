@@ -25,7 +25,8 @@ export function useAIMessage() {
   const generateMessage = async (
     contactName: string,
     contactNotes?: string,
-    lastContacted?: Date | null
+    lastContacted?: Date | null,
+    linkedinUrl?: string
   ): Promise<string | null> => {
     setIsGenerating(true);
     
@@ -36,6 +37,7 @@ export function useAIMessage() {
         body: {
           contactName,
           contactNotes,
+          linkedinUrl,
           lastContacted: lastContacted?.toISOString() || null,
           tone: settings.aiTone,
           length: settings.aiLength,
