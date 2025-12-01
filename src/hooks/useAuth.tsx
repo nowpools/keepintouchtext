@@ -45,6 +45,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       options: {
         redirectTo: redirectUrl,
         scopes: 'https://www.googleapis.com/auth/contacts.readonly',
+        queryParams: {
+          access_type: 'offline',
+          prompt: 'consent',
+        },
       },
     });
     
