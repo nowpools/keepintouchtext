@@ -18,6 +18,7 @@ export type Database = {
         Row: {
           ai_draft: string | null
           cadence: string | null
+          conversation_context: string | null
           created_at: string
           email: string | null
           google_id: string | null
@@ -36,6 +37,7 @@ export type Database = {
         Insert: {
           ai_draft?: string | null
           cadence?: string | null
+          conversation_context?: string | null
           created_at?: string
           email?: string | null
           google_id?: string | null
@@ -54,6 +56,7 @@ export type Database = {
         Update: {
           ai_draft?: string | null
           cadence?: string | null
+          conversation_context?: string | null
           created_at?: string
           email?: string | null
           google_id?: string | null

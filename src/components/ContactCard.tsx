@@ -51,7 +51,8 @@ export const ContactCard = ({
       contact.name,
       contact.notes,
       contact.lastContacted,
-      contact.linkedinUrl
+      contact.linkedinUrl,
+      contact.conversationContext
     );
     
     if (message) {

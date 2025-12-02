@@ -9,6 +9,7 @@ export interface Contact {
   labels: string[];
   notes: string;
   linkedinUrl?: string;
+  conversationContext?: string;
   cadence: CadenceType;
   lastContacted: Date | null;
   nextDue: Date;

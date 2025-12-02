@@ -92,7 +92,7 @@ serve(async (req) => {
   }
 
   try {
-    const { contactName, contactNotes, linkedinUrl, lastContacted, tone, length } = await req.json();
+    const { contactName, contactNotes, linkedinUrl, conversationContext, lastContacted, tone, length } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -110,6 +110,10 @@ serve(async (req) => {
     
     // Build rich context
     const contextParts: string[] = [];
+    
+    if (conversationContext && conversationContext.trim()) {
+      contextParts.push(`Previous conversation snippets and context:\n"${conversationContext}"`);
+    }
     
     if (contactNotes && contactNotes.trim()) {
       contextParts.push(`Personal notes about ${contactName}: "${contactNotes}"`);
@@ -169,6 +173,7 @@ Critical rules:
 - NO emojis unless the tone is casual
 - Sound like a real person, not a bot or assistant
 - If there are notes about them, weave in something specific naturally (don't force it)
+- If there's conversation context, reference topics or things mentioned naturally to show you remember previous interactions
 - If there's LinkedIn info, you can reference their work/interests naturally but don't be creepy about it
 - Don't be overly enthusiastic or use too many exclamation marks
 - Match how real people actually text - contractions, natural flow

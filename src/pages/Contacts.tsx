@@ -5,6 +5,7 @@ import { ContactListItem } from '@/components/ContactListItem';
 import { EmptyState } from '@/components/EmptyState';
 import { SendTextDialog } from '@/components/SendTextDialog';
 import { BulkCategoryDialog } from '@/components/BulkCategoryDialog';
+import { ConversationContextDialog } from '@/components/ConversationContextDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
@@ -29,7 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X } from 'lucide-react';
+import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X, MessageSquareText } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 
@@ -54,6 +55,9 @@ const Contacts = () => {
   const [isSelectionMode, setIsSelectionMode] = useState(false);
   const [selectedContactIds, setSelectedContactIds] = useState<Set<string>>(new Set());
   const [showBulkCategoryDialog, setShowBulkCategoryDialog] = useState(false);
+  
+  // Conversation context dialog state
+  const [showConversationContextDialog, setShowConversationContextDialog] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -478,11 +482,35 @@ const Contacts = () => {
                       LinkedIn helps the AI reference recent posts and professional context
                     </p>
                   </div>
+
+                  {/* Conversation Context Button */}
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => setShowConversationContextDialog(true)}
+                  >
+                    <MessageSquareText className="w-4 h-4" />
+                    Add Conversation Context
+                  </Button>
                 </div>
               </>
             )}
           </DialogContent>
         </Dialog>
+
+        {/* Conversation Context Dialog */}
+        {selectedContact && (
+          <ConversationContextDialog
+            open={showConversationContextDialog}
+            onOpenChange={setShowConversationContextDialog}
+            contactName={selectedContact.name}
+            initialContext={selectedContact.conversationContext || ''}
+            onSave={async (context) => {
+              await updateContact(selectedContact.id, { conversationContext: context });
+              setSelectedContact(prev => prev ? { ...prev, conversationContext: context } : null);
+            }}
+          />
+        )}
 
         {/* Send Text Dialog */}
         <SendTextDialog

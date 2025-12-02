@@ -26,7 +26,8 @@ export function useAIMessage() {
     contactName: string,
     contactNotes?: string,
     lastContacted?: Date | null,
-    linkedinUrl?: string
+    linkedinUrl?: string,
+    conversationContext?: string
   ): Promise<string | null> => {
     setIsGenerating(true);
     
@@ -38,6 +39,7 @@ export function useAIMessage() {
           contactName,
           contactNotes,
           linkedinUrl,
+          conversationContext,
           lastContacted: lastContacted?.toISOString() || null,
           tone: settings.aiTone,
           length: settings.aiLength,
