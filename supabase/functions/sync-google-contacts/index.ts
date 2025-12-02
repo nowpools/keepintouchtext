@@ -25,9 +25,9 @@ serve(async (req) => {
 
     console.log('Fetching Google Contacts for user:', userId);
 
-    // Fetch contacts from Google People API (includes both My Contacts and Other Contacts)
+    // Fetch contacts from Google People API
     const googleResponse = await fetch(
-      'https://people.googleapis.com/v1/people/me/connections?personFields=names,phoneNumbers,emailAddresses,photos,memberships&pageSize=1000&sources=READ_SOURCE_TYPE_CONTACT&sources=READ_SOURCE_TYPE_OTHER_CONTACT',
+      'https://people.googleapis.com/v1/people/me/connections?personFields=names,phoneNumbers,emailAddresses,photos,memberships&pageSize=1000',
       {
         headers: {
           Authorization: `Bearer ${accessToken}`,
