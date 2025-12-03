@@ -21,6 +21,7 @@ export type Database = {
           conversation_context: string | null
           created_at: string
           email: string | null
+          follow_up_override: string | null
           google_id: string | null
           id: string
           labels: string[] | null
@@ -40,6 +41,7 @@ export type Database = {
           conversation_context?: string | null
           created_at?: string
           email?: string | null
+          follow_up_override?: string | null
           google_id?: string | null
           id?: string
           labels?: string[] | null
@@ -59,6 +61,7 @@ export type Database = {
           conversation_context?: string | null
           created_at?: string
           email?: string | null
+          follow_up_override?: string | null
           google_id?: string | null
           id?: string
           labels?: string[] | null
