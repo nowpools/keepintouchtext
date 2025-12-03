@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/EmptyState';
 import { SendTextDialog } from '@/components/SendTextDialog';
 import { BulkCategoryDialog } from '@/components/BulkCategoryDialog';
 import { ConversationContextDialog } from '@/components/ConversationContextDialog';
+import { AddContactDialog } from '@/components/AddContactDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
@@ -30,7 +31,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X, MessageSquareText, CalendarClock, EyeOff, Eye } from 'lucide-react';
+import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X, MessageSquareText, CalendarClock, EyeOff, Eye, UserPlus } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -43,7 +44,7 @@ const Contacts = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
-  const { contacts, isLoading, isSyncing, syncGoogleContacts, updateContact, markAsContacted } = useContacts();
+  const { contacts, isLoading, isSyncing, syncGoogleContacts, updateContact, markAsContacted, refetch } = useContacts();
   const { categorySettings, isLoading: categoriesLoading } = useCategorySettings();
   
   const [searchQuery, setSearchQuery] = useState('');
@@ -63,6 +64,9 @@ const Contacts = () => {
   // Conversation context dialog state
   const [showConversationContextDialog, setShowConversationContextDialog] = useState(false);
   const [showCadenceOverride, setShowCadenceOverride] = useState(false);
+  
+  // Add contact dialog state
+  const [showAddContactDialog, setShowAddContactDialog] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -255,6 +259,13 @@ const Contacts = () => {
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => setShowAddContactDialog(true)}
+              className="gap-2"
+            >
+              <UserPlus className="w-4 h-4" />
+              Add Contact
+            </Button>
             <Button
               onClick={toggleSelectionMode}
               variant={isSelectionMode ? "secondary" : "outline"}
@@ -697,6 +708,13 @@ const Contacts = () => {
           categories={categorySettings}
           selectedCount={selectedContactIds.size}
           onApply={handleBulkCategoryApply}
+        />
+
+        {/* Add Contact Dialog */}
+        <AddContactDialog
+          open={showAddContactDialog}
+          onOpenChange={setShowAddContactDialog}
+          onContactAdded={refetch}
         />
       </div>
     </Layout>
