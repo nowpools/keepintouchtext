@@ -20,6 +20,7 @@ interface DbContact {
   last_contacted: string | null;
   next_due: string | null;
   ai_draft: string | null;
+  follow_up_override: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -60,6 +61,7 @@ export function useContacts() {
         lastContacted: c.last_contacted ? new Date(c.last_contacted) : null,
         nextDue: c.next_due ? new Date(c.next_due) : new Date(),
         aiDraft: c.ai_draft || undefined,
+        followUpOverride: c.follow_up_override ? new Date(c.follow_up_override) : null,
       }));
 
       setContacts(mappedContacts);
@@ -130,6 +132,9 @@ export function useContacts() {
       if (updates.labels !== undefined) dbUpdates.labels = updates.labels;
       if (updates.lastContacted !== undefined) {
         dbUpdates.last_contacted = updates.lastContacted?.toISOString() || null;
+      }
+      if (updates.followUpOverride !== undefined) {
+        dbUpdates.follow_up_override = updates.followUpOverride?.toISOString() || null;
       }
 
       const { error } = await supabase

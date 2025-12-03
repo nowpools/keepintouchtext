@@ -14,6 +14,7 @@ export interface Contact {
   lastContacted: Date | null;
   nextDue: Date;
   aiDraft?: string;
+  followUpOverride?: Date | null;
 }
 
 export interface DailyContact extends Contact {
