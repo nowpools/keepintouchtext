@@ -61,6 +61,7 @@ const Contacts = () => {
   
   // Conversation context dialog state
   const [showConversationContextDialog, setShowConversationContextDialog] = useState(false);
+  const [showCadenceOverride, setShowCadenceOverride] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -73,6 +74,7 @@ const Contacts = () => {
     if (selectedContact) {
       setEditedNotes(selectedContact.notes || '');
       setEditedLinkedinUrl(selectedContact.linkedinUrl || '');
+      setShowCadenceOverride(false);
     }
   }, [selectedContact?.id]);
 
@@ -440,90 +442,98 @@ const Contacts = () => {
                   </div>
 
                   {/* Last Contacted */}
-                  <div className="flex items-center gap-2 text-sm">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-muted-foreground">Last contacted:</span>
-                    <span className="font-medium">
-                      {selectedContact.lastContacted 
-                        ? formatDistanceToNow(selectedContact.lastContacted, { addSuffix: true })
-                        : 'Never'}
-                    </span>
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2 text-sm">
+                      <Calendar className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-muted-foreground">Last contacted:</span>
+                      <span className="font-medium">
+                        {selectedContact.lastContacted 
+                          ? formatDistanceToNow(selectedContact.lastContacted, { addSuffix: true })
+                          : 'Never'}
+                      </span>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-5 px-2 text-xs gap-1"
+                      onClick={() => setShowCadenceOverride(prev => !prev)}
+                    >
+                      <CalendarClock className="w-3 h-3" />
+                      Override
+                    </Button>
                   </div>
 
-                  {/* Cadence Override Section */}
-                  <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/30">
-                    <div className="flex items-center gap-2 text-sm font-medium">
-                      <CalendarClock className="w-4 h-4" />
-                      <span>Cadence Override</span>
-                    </div>
-                    
-                    {/* Custom Cadence */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Custom Cadence</Label>
-                      <Select 
-                        value={selectedContact.cadence} 
-                        onValueChange={(v) => handleCadenceChange(selectedContact.id, v as CadenceType)}
-                      >
-                        <SelectTrigger className="h-9">
-                          <SelectValue placeholder="Select cadence" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {Object.entries(CADENCE_LABELS).map(([value, label]) => (
-                            <SelectItem key={value} value={value}>{label}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Specific Follow-up Date */}
-                    <div className="space-y-1.5">
-                      <Label className="text-xs text-muted-foreground">Specific Follow-up Date</Label>
-                      <div className="flex gap-2">
-                        <Popover>
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              className="flex-1 justify-start text-left font-normal h-9"
-                            >
-                              <Calendar className="mr-2 h-4 w-4" />
-                              {selectedContact.followUpOverride 
-                                ? format(selectedContact.followUpOverride, 'PPP')
-                                : <span className="text-muted-foreground">Pick a date</span>
-                              }
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-auto p-0" align="start">
-                            <CalendarComponent
-                              mode="single"
-                              selected={selectedContact.followUpOverride || undefined}
-                              onSelect={async (date) => {
-                                await updateContact(selectedContact.id, { followUpOverride: date || null });
-                                setSelectedContact(prev => prev ? { ...prev, followUpOverride: date || null } : null);
-                              }}
-                              initialFocus
-                              className="pointer-events-auto"
-                            />
-                          </PopoverContent>
-                        </Popover>
-                        {selectedContact.followUpOverride && (
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-9 w-9"
-                            onClick={async () => {
-                              await updateContact(selectedContact.id, { followUpOverride: null });
-                              setSelectedContact(prev => prev ? { ...prev, followUpOverride: null } : null);
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        )}
+                  {/* Cadence Override Section (Collapsible) */}
+                  {showCadenceOverride && (
+                    <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/30 animate-fade-in">
+                      {/* Custom Cadence */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Custom Cadence</Label>
+                        <Select 
+                          value={selectedContact.cadence} 
+                          onValueChange={(v) => handleCadenceChange(selectedContact.id, v as CadenceType)}
+                        >
+                          <SelectTrigger className="h-9">
+                            <SelectValue placeholder="Select cadence" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {Object.entries(CADENCE_LABELS).map(([value, label]) => (
+                              <SelectItem key={value} value={value}>{label}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <p className="text-xs text-muted-foreground">
-                        Override the calculated next due date
-                      </p>
+
+                      {/* Specific Follow-up Date */}
+                      <div className="space-y-1.5">
+                        <Label className="text-xs text-muted-foreground">Specific Follow-up Date</Label>
+                        <div className="flex gap-2">
+                          <Popover>
+                            <PopoverTrigger asChild>
+                              <Button
+                                variant="outline"
+                                className="flex-1 justify-start text-left font-normal h-9"
+                              >
+                                <Calendar className="mr-2 h-4 w-4" />
+                                {selectedContact.followUpOverride 
+                                  ? format(selectedContact.followUpOverride, 'PPP')
+                                  : <span className="text-muted-foreground">Pick a date</span>
+                                }
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                              <CalendarComponent
+                                mode="single"
+                                selected={selectedContact.followUpOverride || undefined}
+                                onSelect={async (date) => {
+                                  await updateContact(selectedContact.id, { followUpOverride: date || null });
+                                  setSelectedContact(prev => prev ? { ...prev, followUpOverride: date || null } : null);
+                                }}
+                                initialFocus
+                                className="pointer-events-auto"
+                              />
+                            </PopoverContent>
+                          </Popover>
+                          {selectedContact.followUpOverride && (
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="h-9 w-9"
+                              onClick={async () => {
+                                await updateContact(selectedContact.id, { followUpOverride: null });
+                                setSelectedContact(prev => prev ? { ...prev, followUpOverride: null } : null);
+                              }}
+                            >
+                              <X className="h-4 w-4" />
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          Override the calculated next due date
+                        </p>
+                      </div>
                     </div>
-                  </div>
+                  )}
 
                   {/* Notes - Editable */}
                   <div className="space-y-2">
