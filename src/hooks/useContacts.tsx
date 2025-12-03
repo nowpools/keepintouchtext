@@ -21,6 +21,7 @@ interface DbContact {
   next_due: string | null;
   ai_draft: string | null;
   follow_up_override: string | null;
+  is_hidden: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -62,6 +63,7 @@ export function useContacts() {
         nextDue: c.next_due ? new Date(c.next_due) : new Date(),
         aiDraft: c.ai_draft || undefined,
         followUpOverride: c.follow_up_override ? new Date(c.follow_up_override) : null,
+        isHidden: c.is_hidden || false,
       }));
 
       setContacts(mappedContacts);
@@ -136,6 +138,7 @@ export function useContacts() {
       if (updates.followUpOverride !== undefined) {
         dbUpdates.follow_up_override = updates.followUpOverride?.toISOString() || null;
       }
+      if (updates.isHidden !== undefined) dbUpdates.is_hidden = updates.isHidden;
 
       const { error } = await supabase
         .from('contacts')

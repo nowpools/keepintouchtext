@@ -27,6 +27,7 @@ export const mockContacts: Contact[] = [
     cadence: 'weekly',
     lastContacted: subDays(new Date(), 8),
     nextDue: subDays(new Date(), 1),
+    isHidden: false,
   },
   {
     id: '2',
@@ -39,6 +40,7 @@ export const mockContacts: Contact[] = [
     cadence: 'monthly',
     lastContacted: subDays(new Date(), 35),
     nextDue: subDays(new Date(), 5),
+    isHidden: false,
   },
   {
     id: '3',
@@ -51,6 +53,7 @@ export const mockContacts: Contact[] = [
     cadence: 'quarterly',
     lastContacted: subDays(new Date(), 95),
     nextDue: subDays(new Date(), 5),
+    isHidden: false,
   },
   {
     id: '4',
@@ -63,6 +66,7 @@ export const mockContacts: Contact[] = [
     cadence: 'weekly',
     lastContacted: subDays(new Date(), 10),
     nextDue: subDays(new Date(), 3),
+    isHidden: false,
   },
   {
     id: '5',
@@ -75,6 +79,7 @@ export const mockContacts: Contact[] = [
     cadence: 'monthly',
     lastContacted: subDays(new Date(), 32),
     nextDue: subDays(new Date(), 2),
+    isHidden: false,
   },
   {
     id: '6',
@@ -87,6 +92,7 @@ export const mockContacts: Contact[] = [
     cadence: 'yearly',
     lastContacted: subDays(new Date(), 370),
     nextDue: subDays(new Date(), 5),
+    isHidden: false,
   },
   {
     id: '7',
@@ -99,6 +105,7 @@ export const mockContacts: Contact[] = [
     cadence: 'daily',
     lastContacted: subDays(new Date(), 2),
     nextDue: subDays(new Date(), 1),
+    isHidden: false,
   },
   {
     id: '8',
@@ -111,6 +118,7 @@ export const mockContacts: Contact[] = [
     cadence: 'twice-yearly',
     lastContacted: subDays(new Date(), 190),
     nextDue: subDays(new Date(), 10),
+    isHidden: false,
   },
 ];
 

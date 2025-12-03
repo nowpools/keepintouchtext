@@ -24,6 +24,7 @@ export type Database = {
           follow_up_override: string | null
           google_id: string | null
           id: string
+          is_hidden: boolean
           labels: string[] | null
           last_contacted: string | null
           linkedin_url: string | null
@@ -44,6 +45,7 @@ export type Database = {
           follow_up_override?: string | null
           google_id?: string | null
           id?: string
+          is_hidden?: boolean
           labels?: string[] | null
           last_contacted?: string | null
           linkedin_url?: string | null
@@ -64,6 +66,7 @@ export type Database = {
           follow_up_override?: string | null
           google_id?: string | null
           id?: string
+          is_hidden?: boolean
           labels?: string[] | null
           last_contacted?: string | null
           linkedin_url?: string | null
