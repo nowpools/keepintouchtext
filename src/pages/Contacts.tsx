@@ -30,7 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X, MessageSquareText, CalendarClock, EyeOff } from 'lucide-react';
+import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X, MessageSquareText, CalendarClock, EyeOff, Eye } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -48,6 +48,7 @@ const Contacts = () => {
   
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [showHidden, setShowHidden] = useState(false);
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [editedNotes, setEditedNotes] = useState('');
@@ -89,6 +90,11 @@ const Contacts = () => {
   const filteredContacts = useMemo(() => {
     let result = [...contacts];
 
+    // Hidden filter - by default hide hidden contacts
+    if (!showHidden) {
+      result = result.filter(c => !c.isHidden);
+    }
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -123,7 +129,7 @@ const Contacts = () => {
     });
 
     return result;
-  }, [contacts, searchQuery, categoryFilter, sortBy]);
+  }, [contacts, searchQuery, categoryFilter, sortBy, showHidden]);
 
   const handleCadenceChange = async (contactId: string, newCadence: CadenceType) => {
     await updateContact(contactId, { cadence: newCadence });
@@ -359,6 +365,15 @@ const Contacts = () => {
               <SelectItem value="category">Category</SelectItem>
             </SelectContent>
           </Select>
+
+          <Button
+            variant={showHidden ? "secondary" : "outline"}
+            onClick={() => setShowHidden(!showHidden)}
+            className="gap-2"
+          >
+            {showHidden ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
+            {showHidden ? 'Showing Hidden' : 'Show Hidden'}
+          </Button>
         </div>
 
         {/* Contact List */}
@@ -613,6 +628,39 @@ const Contacts = () => {
                     <MessageSquareText className="w-4 h-4" />
                     Add Conversation Context
                   </Button>
+
+                  {/* Hide/Unhide Contact */}
+                  {selectedContact.isHidden ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+                        <EyeOff className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-sm text-muted-foreground flex-1">This contact is hidden from cadence</span>
+                      </div>
+                      <Button
+                        variant="outline"
+                        className="w-full gap-2"
+                        onClick={async () => {
+                          await updateContact(selectedContact.id, { isHidden: false });
+                          setSelectedContact(prev => prev ? { ...prev, isHidden: false } : null);
+                        }}
+                      >
+                        <Eye className="w-4 h-4" />
+                        Unhide Contact
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      variant="ghost"
+                      className="w-full gap-2 text-muted-foreground"
+                      onClick={async () => {
+                        await updateContact(selectedContact.id, { isHidden: true });
+                        setSelectedContact(prev => prev ? { ...prev, isHidden: true } : null);
+                      }}
+                    >
+                      <EyeOff className="w-4 h-4" />
+                      Hide Contact
+                    </Button>
+                  )}
                 </div>
               </>
             )}

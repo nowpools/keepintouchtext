@@ -1,7 +1,7 @@
 import { Contact } from '@/types/contact';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Phone, Calendar } from 'lucide-react';
+import { Phone, Calendar, EyeOff } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 
@@ -75,9 +75,17 @@ export const ContactListItem = ({
         </div>
 
         <div className="flex flex-col items-end gap-2">
-          <Badge variant="secondary" className="text-xs">
-            {primaryCategory || 'Uncategorized'}
-          </Badge>
+          <div className="flex items-center gap-1.5">
+            {contact.isHidden && (
+              <Badge variant="outline" className="text-xs gap-1 text-muted-foreground">
+                <EyeOff className="w-3 h-3" />
+                Hidden
+              </Badge>
+            )}
+            <Badge variant="secondary" className="text-xs">
+              {primaryCategory || 'Uncategorized'}
+            </Badge>
+          </div>
           <div className="flex items-center gap-1 text-xs text-muted-foreground">
             <Calendar className="w-3 h-3" />
             <span>
