@@ -30,7 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X, MessageSquareText, CalendarClock } from 'lucide-react';
+import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X, MessageSquareText, CalendarClock, EyeOff } from 'lucide-react';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -205,6 +205,28 @@ const Contacts = () => {
     setIsSelectionMode(false);
   };
 
+  const handleBulkHide = async () => {
+    const selectedIds = Array.from(selectedContactIds);
+    let successCount = 0;
+
+    for (const id of selectedIds) {
+      try {
+        await updateContact(id, { isHidden: true });
+        successCount++;
+      } catch (error) {
+        console.error('Error hiding contact:', error);
+      }
+    }
+
+    toast({
+      title: 'Contacts hidden',
+      description: `${successCount} contacts will no longer appear in cadence`,
+    });
+
+    setSelectedContactIds(new Set());
+    setIsSelectionMode(false);
+  };
+
   if (authLoading) {
     return (
       <Layout>
@@ -281,14 +303,25 @@ const Contacts = () => {
                 </Button>
               )}
             </div>
-            <Button
-              onClick={() => setShowBulkCategoryDialog(true)}
-              disabled={selectedContactIds.size === 0}
-              className="gap-2"
-            >
-              <Tag className="w-4 h-4" />
-              Apply Category
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                onClick={() => setShowBulkCategoryDialog(true)}
+                disabled={selectedContactIds.size === 0}
+                className="gap-2"
+              >
+                <Tag className="w-4 h-4" />
+                Apply Category
+              </Button>
+              <Button
+                variant="outline"
+                onClick={handleBulkHide}
+                disabled={selectedContactIds.size === 0}
+                className="gap-2"
+              >
+                <EyeOff className="w-4 h-4" />
+                Hide Contacts
+              </Button>
+            </div>
           </div>
         )}
 

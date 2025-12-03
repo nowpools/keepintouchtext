@@ -39,7 +39,6 @@ export const SendTextDialog = ({
   onSnooze,
 }: SendTextDialogProps) => {
   const [draft, setDraft] = useState('');
-  const [showConfirm, setShowConfirm] = useState(false);
   const { generateMessage, isGenerating } = useAIMessage();
 
   // Generate message when dialog opens
@@ -48,7 +47,6 @@ export const SendTextDialog = ({
       handleGenerateMessage();
     } else if (!open) {
       setDraft('');
-      setShowConfirm(false);
     }
   }, [open, contact?.id]);
 
@@ -76,15 +74,9 @@ export const SendTextDialog = ({
     const iMessageUrl = `sms:${phoneNumber}&body=${encodedMessage}`;
     window.open(iMessageUrl, '_blank');
     
-    setTimeout(() => setShowConfirm(true), 1000);
-  };
-
-  const handleConfirmSent = (sent: boolean) => {
-    setShowConfirm(false);
-    if (sent && contact) {
-      onComplete(contact.id);
-      onOpenChange(false);
-    }
+    // Auto-mark as contacted
+    onComplete(contact.id);
+    onOpenChange(false);
   };
 
   if (!contact) return null;
@@ -92,35 +84,6 @@ export const SendTextDialog = ({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-md">
-        {/* Confirmation Overlay */}
-        {showConfirm && (
-          <div className="absolute inset-0 bg-background/95 backdrop-blur-sm z-10 flex items-center justify-center rounded-lg animate-fade-in">
-            <Card className="p-6 max-w-sm mx-4 card-shadow-hover">
-              <h3 className="text-lg font-semibold mb-2">Did you send the message?</h3>
-              <p className="text-sm text-muted-foreground mb-4">
-                Let us know so we can update your contact history.
-              </p>
-              <div className="flex gap-3">
-                <Button 
-                  variant="outline" 
-                  className="flex-1"
-                  onClick={() => handleConfirmSent(false)}
-                >
-                  Not yet
-                </Button>
-                <Button 
-                  variant="success" 
-                  className="flex-1"
-                  onClick={() => handleConfirmSent(true)}
-                >
-                  <Check className="w-4 h-4" />
-                  Yes, sent!
-                </Button>
-              </div>
-            </Card>
-          </div>
-        )}
-
         <DialogHeader>
           <div className="flex items-center gap-4">
             {contact.photo ? (

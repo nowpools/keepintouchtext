@@ -50,6 +50,7 @@ const Index = () => {
     const todaySeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
     
     const dueContacts = contacts
+      .filter(contact => !contact.isHidden) // Exclude hidden contacts
       .map(contact => {
         const category = contact.labels[0];
         // Use category cadence if available, otherwise fall back to 30 days
