@@ -44,7 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       provider: 'google',
       options: {
         redirectTo: redirectUrl,
-        scopes: 'https://www.googleapis.com/auth/contacts.readonly',
+        scopes: 'https://www.googleapis.com/auth/contacts',
         queryParams: {
           access_type: 'offline',
           prompt: 'consent',
