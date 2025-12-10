@@ -30,7 +30,7 @@ const Privacy = () => {
         <div className="max-w-4xl mx-auto">
           <div className="space-y-2 mb-12">
             <h1 className="text-4xl font-bold">Privacy Policy</h1>
-            <p className="text-muted-foreground">Last updated: December 1, 2025</p>
+            <p className="text-muted-foreground">Last updated: December 10, 2025</p>
           </div>
 
           <article className="prose prose-slate dark:prose-invert max-w-none space-y-8">
@@ -43,70 +43,117 @@ const Privacy = () => {
               </p>
             </section>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">2. Information We Collect</h2>
+            <section className="space-y-4 p-6 bg-muted/50 rounded-lg border border-border">
+              <h2 className="text-2xl font-semibold text-primary">2. Data Accessed (Google User Data)</h2>
               <p className="text-muted-foreground leading-relaxed">
-                We collect information that you provide directly to us, including:
+                When you connect your Google account to Keep In Touch, we access the following Google user data:
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-2">
-                <li>Account information (name, email address)</li>
-                <li>Contact information from your Google Contacts (when you choose to sync)</li>
-                <li>Communication preferences and cadence settings</li>
-                <li>Notes and messages you create within the app</li>
-                <li>Usage data and interaction with our services</li>
+                <li><strong>Contact Names:</strong> Full names of your Google Contacts</li>
+                <li><strong>Phone Numbers:</strong> Phone numbers associated with your contacts</li>
+                <li><strong>Email Addresses:</strong> Email addresses associated with your contacts</li>
+                <li><strong>Contact Photos:</strong> Profile photos of your contacts (if available)</li>
+                <li><strong>Contact Labels/Groups:</strong> Organization labels you've assigned to contacts in Google</li>
+              </ul>
+              <p className="text-muted-foreground leading-relaxed mt-4">
+                We request <strong>read-only access</strong> to your Google Contacts. We also request write access 
+                solely to create new contacts within your Google account when you add contacts through Keep In Touch. 
+                We do not modify or delete your existing Google Contacts.
+              </p>
+            </section>
+
+            <section className="space-y-4 p-6 bg-muted/50 rounded-lg border border-border">
+              <h2 className="text-2xl font-semibold text-primary">3. Data Usage (How We Use Google Data)</h2>
+              <p className="text-muted-foreground leading-relaxed">
+                Keep In Touch accesses Google Contacts data solely to:
+              </p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-2">
+                <li>Display your contacts within the Keep In Touch interface</li>
+                <li>Generate personalized AI-powered outreach message suggestions</li>
+                <li>Help you manage follow-up reminders and communication cadences</li>
+                <li>Allow you to organize contacts with custom labels and notes</li>
+                <li>Sync new contacts you create back to your Google Contacts</li>
+              </ul>
+              <p className="text-muted-foreground leading-relaxed mt-4">
+                We do not use your Google user data for advertising purposes or to build advertising profiles.
+              </p>
+            </section>
+
+            <section className="space-y-4 p-6 bg-muted/50 rounded-lg border border-border">
+              <h2 className="text-2xl font-semibold text-primary">4. Data Sharing</h2>
+              <p className="text-muted-foreground leading-relaxed">
+                <strong>Keep In Touch does not share, sell, or transfer Google user data to any third parties</strong> except as required to operate core functionality:
+              </p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-2">
+                <li><strong>Supabase:</strong> Our secure database infrastructure provider (stores encrypted contact data)</li>
+                <li><strong>AI Service Providers:</strong> We use AI models to generate message suggestions. Only the contact's name and your custom context notes are sent to generate personalized messages—no phone numbers, emails, or other personal identifiers are shared with AI providers.</li>
+              </ul>
+              <p className="text-muted-foreground leading-relaxed mt-4">
+                We never sell Google user data. All third-party service providers are bound by strict data protection agreements.
+              </p>
+            </section>
+
+            <section className="space-y-4 p-6 bg-muted/50 rounded-lg border border-border">
+              <h2 className="text-2xl font-semibold text-primary">5. Data Storage & Protection</h2>
+              <p className="text-muted-foreground leading-relaxed">
+                <strong>What data is stored:</strong>
+              </p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-2">
+                <li>Your synced Google Contacts data (names, phone numbers, emails, photos, labels)</li>
+                <li>Custom notes, conversation context, and cadence settings you create</li>
+                <li>AI-generated message drafts</li>
+                <li>Your account information and preferences</li>
+              </ul>
+              <p className="text-muted-foreground leading-relaxed mt-4">
+                <strong>Where data is stored:</strong> Your data is stored on Supabase, a secure cloud database infrastructure with servers located in secure data centers.
+              </p>
+              <p className="text-muted-foreground leading-relaxed mt-4">
+                <strong>How we protect your data:</strong>
+              </p>
+              <ul className="list-disc list-inside text-muted-foreground space-y-2">
+                <li>All data is encrypted in transit using TLS/SSL</li>
+                <li>All data is encrypted at rest using AES-256 encryption</li>
+                <li>Row-level security policies ensure users can only access their own data</li>
+                <li>Regular security audits and monitoring</li>
+                <li>Secure authentication via Google OAuth 2.0</li>
               </ul>
             </section>
 
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">3. How We Use Your Information</h2>
+            <section className="space-y-4 p-6 bg-muted/50 rounded-lg border border-border">
+              <h2 className="text-2xl font-semibold text-primary">6. Data Retention & Deletion</h2>
               <p className="text-muted-foreground leading-relaxed">
-                We use the information we collect to:
+                <strong>How long data is stored:</strong> Your data is retained for as long as your account is active. If you do not use your account for 24 months, we may send you a reminder before deleting inactive data.
+              </p>
+              <p className="text-muted-foreground leading-relaxed mt-4">
+                <strong>How to request deletion:</strong> You may request deletion of all stored Google data at any time by:
               </p>
               <ul className="list-disc list-inside text-muted-foreground space-y-2">
-                <li>Provide, operate, and maintain our services</li>
-                <li>Send you reminders about contacting your connections</li>
-                <li>Generate AI-powered message suggestions</li>
-                <li>Improve and personalize your experience</li>
-                <li>Communicate with you about updates and support</li>
-                <li>Ensure security and prevent fraud</li>
+                <li>Emailing us at <a href="mailto:support@keepintouchtext.com" className="text-primary hover:underline">support@keepintouchtext.com</a></li>
+                <li>Deleting your account through the app settings</li>
               </ul>
-            </section>
-
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">4. Google Contacts Integration</h2>
-              <p className="text-muted-foreground leading-relaxed">
-                When you connect your Google account, we access your Google Contacts to help you 
-                manage your relationships. We only read contact information (names, phone numbers, 
-                email addresses, and photos) and do not modify or delete your Google Contacts. 
-                You can disconnect your Google account at any time through the Settings page.
+              <p className="text-muted-foreground leading-relaxed mt-4">
+                <strong>What happens when you delete:</strong> Upon receiving a deletion request or account deletion, all your Google user data is permanently removed from our systems within 30 days. This includes all synced contacts, notes, and associated data. Deletion is complete and irreversible.
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">5. Data Storage and Security</h2>
+              <h2 className="text-2xl font-semibold">7. Google API Services User Data Policy</h2>
               <p className="text-muted-foreground leading-relaxed">
-                Your data is stored securely using industry-standard encryption. We implement 
-                appropriate technical and organizational measures to protect your personal information 
-                against unauthorized access, alteration, disclosure, or destruction.
+                Keep In Touch's use and transfer of information received from Google APIs adheres to the{' '}
+                <a 
+                  href="https://developers.google.com/terms/api-services-user-data-policy" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-primary hover:underline"
+                >
+                  Google API Services User Data Policy
+                </a>
+                , including the Limited Use requirements.
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">6. Data Sharing</h2>
-              <p className="text-muted-foreground leading-relaxed">
-                We do not sell, trade, or rent your personal information to third parties. We may 
-                share your information only in the following circumstances:
-              </p>
-              <ul className="list-disc list-inside text-muted-foreground space-y-2">
-                <li>With your consent</li>
-                <li>To comply with legal obligations</li>
-                <li>To protect our rights and prevent fraud</li>
-                <li>With service providers who assist in operating our services (under strict confidentiality agreements)</li>
-              </ul>
-            </section>
-
-            <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">7. Your Rights</h2>
+              <h2 className="text-2xl font-semibold">8. Your Rights</h2>
               <p className="text-muted-foreground leading-relaxed">
                 You have the right to:
               </p>
@@ -115,21 +162,21 @@ const Privacy = () => {
                 <li>Correct inaccurate data</li>
                 <li>Request deletion of your data</li>
                 <li>Export your data</li>
-                <li>Withdraw consent at any time</li>
+                <li>Withdraw consent and disconnect your Google account at any time</li>
                 <li>Lodge a complaint with a supervisory authority</li>
               </ul>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">8. Cookies and Tracking</h2>
+              <h2 className="text-2xl font-semibold">9. Cookies and Tracking</h2>
               <p className="text-muted-foreground leading-relaxed">
                 We use essential cookies to maintain your session and preferences. We do not use 
-                third-party advertising cookies. You can control cookie settings through your browser.
+                third-party advertising cookies or tracking pixels. You can control cookie settings through your browser.
               </p>
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">9. Children's Privacy</h2>
+              <h2 className="text-2xl font-semibold">10. Children's Privacy</h2>
               <p className="text-muted-foreground leading-relaxed">
                 Our service is not intended for children under 13 years of age. We do not knowingly 
                 collect personal information from children under 13.
@@ -137,7 +184,7 @@ const Privacy = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">10. Changes to This Policy</h2>
+              <h2 className="text-2xl font-semibold">11. Changes to This Policy</h2>
               <p className="text-muted-foreground leading-relaxed">
                 We may update this Privacy Policy from time to time. We will notify you of any 
                 changes by posting the new Privacy Policy on this page and updating the "Last updated" date.
@@ -145,12 +192,12 @@ const Privacy = () => {
             </section>
 
             <section className="space-y-4">
-              <h2 className="text-2xl font-semibold">11. Contact Us</h2>
+              <h2 className="text-2xl font-semibold">12. Contact Us</h2>
               <p className="text-muted-foreground leading-relaxed">
-                If you have questions about this Privacy Policy, please contact us at:
+                If you have questions about this Privacy Policy or wish to exercise your data rights, please contact us at:
               </p>
               <p className="text-muted-foreground">
-                Email: <a href="mailto:privacy@keepintouch.app" className="text-primary hover:underline">privacy@keepintouch.app</a>
+                Email: <a href="mailto:support@keepintouchtext.com" className="text-primary hover:underline">support@keepintouchtext.com</a>
               </p>
             </section>
           </article>
