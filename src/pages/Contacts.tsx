@@ -8,6 +8,7 @@ import { BulkCategoryDialog } from '@/components/BulkCategoryDialog';
 import { ConversationContextDialog } from '@/components/ConversationContextDialog';
 import { AddContactDialog } from '@/components/AddContactDialog';
 import { BirthdayField } from '@/components/BirthdayField';
+import { EditablePhone } from '@/components/EditablePhone';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
@@ -29,7 +30,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -463,10 +463,14 @@ const Contacts = () => {
                     )}
                     <div>
                       <DialogTitle className="text-xl">{selectedContact.name}</DialogTitle>
-                      <DialogDescription className="flex items-center gap-1.5 mt-1">
-                        <Phone className="w-4 h-4" />
-                        <span>{selectedContact.phone || 'No phone'}</span>
-                      </DialogDescription>
+                      <EditablePhone
+                        className="mt-1"
+                        phone={selectedContact.phone}
+                        onSave={async (newPhone) => {
+                          await updateContact(selectedContact.id, { phone: newPhone });
+                          setSelectedContact((prev) => (prev ? { ...prev, phone: newPhone } : null));
+                        }}
+                      />
                     </div>
                   </div>
                 </DialogHeader>
