@@ -76,7 +76,7 @@ const tiers = [{
     text: '2-way Sync with Google Contacts',
     included: true
   }, {
-    text: 'Birthday Field',
+    text: 'Birthday Field with automatic message reminder',
     included: true
   }, {
     text: 'Hide Contacts for future messages',
