@@ -5,83 +5,27 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-async function fetchLinkedInContent(linkedinUrl: string): Promise<string | null> {
+// Extract vanity name from LinkedIn URL for context
+function extractLinkedInInfo(linkedinUrl: string): string | null {
   try {
-    console.log("Fetching LinkedIn content from:", linkedinUrl);
+    const url = new URL(linkedinUrl);
+    const pathParts = url.pathname.split('/').filter(Boolean);
     
-    // Fetch the LinkedIn page
-    const response = await fetch(linkedinUrl, {
-      headers: {
-        "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
-        "Accept-Language": "en-US,en;q=0.5",
-      },
-    });
-
-    if (!response.ok) {
-      console.log("LinkedIn fetch failed:", response.status);
-      return null;
+    if (pathParts[0] === 'in' && pathParts[1]) {
+      // Convert vanity name to readable format: "john-doe-123abc" -> "john doe"
+      const vanityName = pathParts[1]
+        .replace(/-[a-f0-9]{6,}$/i, '') // Remove trailing ID
+        .replace(/-/g, ' ')
+        .trim();
+      return vanityName;
     }
-
-    const html = await response.text();
     
-    // Extract useful content from the HTML
-    const extracted: string[] = [];
+    if (pathParts[0] === 'company' && pathParts[1]) {
+      return `works at or connected to ${pathParts[1].replace(/-/g, ' ')}`;
+    }
     
-    // Try to extract the title (usually contains name and headline)
-    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    if (titleMatch) {
-      const title = titleMatch[1].replace(/\s*\|\s*LinkedIn.*$/i, "").trim();
-      if (title && !title.includes("Sign Up") && !title.includes("Log In")) {
-        extracted.push(`Profile headline: ${title}`);
-      }
-    }
-
-    // Extract meta description (often contains bio/summary)
-    const descMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
-    if (descMatch) {
-      const desc = descMatch[1].trim();
-      if (desc && desc.length > 20 && !desc.includes("LinkedIn")) {
-        extracted.push(`Bio: ${desc}`);
-      }
-    }
-
-    // Extract og:description (alternative bio source)
-    const ogDescMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i);
-    if (ogDescMatch && !extracted.some(e => e.includes(ogDescMatch[1]))) {
-      const ogDesc = ogDescMatch[1].trim();
-      if (ogDesc && ogDesc.length > 20) {
-        extracted.push(`Summary: ${ogDesc}`);
-      }
-    }
-
-    // Try to find job title patterns
-    const jobPatterns = [
-      /(?:currently|working as|position)[:\s]+([^<\n]+)/gi,
-      /(?:founder|ceo|director|manager|engineer|developer|designer|consultant|analyst)[^<\n]{0,50}/gi,
-    ];
-    
-    for (const pattern of jobPatterns) {
-      const matches = html.match(pattern);
-      if (matches && matches.length > 0) {
-        const unique = [...new Set(matches.map(m => m.trim().slice(0, 100)))];
-        if (unique.length > 0 && unique[0].length > 5) {
-          extracted.push(`Role info: ${unique.slice(0, 2).join(", ")}`);
-          break;
-        }
-      }
-    }
-
-    if (extracted.length === 0) {
-      console.log("No useful content extracted from LinkedIn");
-      return null;
-    }
-
-    const content = extracted.join("\n");
-    console.log("Extracted LinkedIn content:", content.slice(0, 200));
-    return content;
-  } catch (error) {
-    console.error("Error fetching LinkedIn:", error);
+    return null;
+  } catch {
     return null;
   }
 }
@@ -101,12 +45,9 @@ serve(async (req) => {
 
     // Build context from contact info
     let context = "";
-    let linkedinContent: string | null = null;
     
-    // Fetch LinkedIn content if URL provided
-    if (linkedinUrl) {
-      linkedinContent = await fetchLinkedInContent(linkedinUrl);
-    }
+    // Extract LinkedIn info from URL if provided
+    const linkedinInfo = linkedinUrl ? extractLinkedInInfo(linkedinUrl) : null;
     
     // Build rich context
     const contextParts: string[] = [];
@@ -119,8 +60,10 @@ serve(async (req) => {
       contextParts.push(`Personal notes about ${contactName}: "${contactNotes}"`);
     }
     
-    if (linkedinContent) {
-      contextParts.push(`LinkedIn profile info for ${contactName}:\n${linkedinContent}`);
+    if (linkedinInfo) {
+      contextParts.push(`They have a LinkedIn profile (${linkedinInfo})`);
+    } else if (linkedinUrl) {
+      contextParts.push(`They have a LinkedIn profile at ${linkedinUrl}`);
     }
     
     if (lastContacted) {
@@ -174,16 +117,20 @@ Critical rules:
 - Sound like a real person, not a bot or assistant
 - If there are notes about them, weave in something specific naturally (don't force it)
 - If there's conversation context, reference topics or things mentioned naturally to show you remember previous interactions
-- If there's LinkedIn info, you can reference their work/interests naturally but don't be creepy about it
+- If there's a LinkedIn profile mentioned, you can subtly acknowledge their professional world but don't be weird about it
 - Don't be overly enthusiastic or use too many exclamation marks
 - Match how real people actually text - contractions, natural flow
+- Be curious and genuine - ask about something real
+- If little context is available, keep it simple and genuine - a light check-in works great
 - Output ONLY the message text, nothing else
 
 Examples of good messages:
 - "Been thinking about that project you mentioned - how's it going?"
 - "saw your post about the conference, looked awesome. we should grab coffee and you can tell me about it"
 - "Hope the new role is treating you well! Would love to catch up sometime"
-- "Random but I just saw something that reminded me of our chat about startups. Miss those convos"`;
+- "Random but I just saw something that reminded me of our chat about startups. Miss those convos"
+- "how've you been? feels like it's been forever"
+- "just wanted to check in - hope things are going well on your end"`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
