@@ -7,9 +7,11 @@ import { SendTextDialog } from '@/components/SendTextDialog';
 import { BulkCategoryDialog } from '@/components/BulkCategoryDialog';
 import { ConversationContextDialog } from '@/components/ConversationContextDialog';
 import { AddContactDialog } from '@/components/AddContactDialog';
+import { BirthdayField } from '@/components/BirthdayField';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
+import { useSubscription } from '@/hooks/useSubscription';
 import { Contact, CadenceType, CADENCE_LABELS } from '@/types/contact';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -45,8 +47,11 @@ const Contacts = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
+  const { features, isTrialActive } = useSubscription();
   const { contacts, isLoading, isSyncing, syncGoogleContacts, updateContact, markAsContacted, refetch } = useContacts();
   const { categorySettings, isLoading: categoriesLoading } = useCategorySettings();
+  
+  const hasBirthdayFeature = features.birthdayField || isTrialActive;
   
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
@@ -611,6 +616,28 @@ const Contacts = () => {
                         </p>
                       </div>
                     </div>
+                  )}
+
+                  {/* Birthday - Pro/Business only */}
+                  {hasBirthdayFeature && (
+                    <BirthdayField
+                      month={selectedContact.birthdayMonth}
+                      day={selectedContact.birthdayDay}
+                      year={selectedContact.birthdayYear}
+                      onChange={async (birthday) => {
+                        await updateContact(selectedContact.id, {
+                          birthdayMonth: birthday.month,
+                          birthdayDay: birthday.day,
+                          birthdayYear: birthday.year,
+                        });
+                        setSelectedContact(prev => prev ? {
+                          ...prev,
+                          birthdayMonth: birthday.month,
+                          birthdayDay: birthday.day,
+                          birthdayYear: birthday.year,
+                        } : null);
+                      }}
+                    />
                   )}
 
                   {/* Notes - Editable */}
