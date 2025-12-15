@@ -1,21 +1,58 @@
-import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Users, Sparkles, Calendar, MessageSquare } from 'lucide-react';
+import { Users, Sparkles, Calendar, MessageSquare, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
+import { STRIPE_PRICES, type BillingInterval } from '@/config/stripe';
 
 const Auth = () => {
   const { user, isLoading, signInWithGoogle } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const [isCheckingOut, setIsCheckingOut] = useState(false);
+
+  const planFromUrl = searchParams.get('plan');
+  const billingFromUrl = (searchParams.get('billing') || 'yearly') as BillingInterval;
 
   useEffect(() => {
-    if (user && !isLoading) {
-      navigate('/dashboard');
-    }
-  }, [user, isLoading, navigate]);
+    const handlePostLoginCheckout = async () => {
+      if (user && !isLoading && planFromUrl && (planFromUrl === 'pro' || planFromUrl === 'business')) {
+        setIsCheckingOut(true);
+        try {
+          const priceConfig = STRIPE_PRICES[planFromUrl][billingFromUrl];
+          
+          const { data, error } = await supabase.functions.invoke('create-checkout', {
+            body: {
+              priceId: priceConfig.priceId,
+              tier: planFromUrl,
+              billingInterval: billingFromUrl,
+            },
+          });
+
+          if (error) throw error;
+          if (data?.url) {
+            window.location.href = data.url;
+          }
+        } catch (error: any) {
+          console.error('Checkout error:', error);
+          toast({
+            title: 'Checkout failed',
+            description: error.message || 'Failed to start checkout. Redirecting to dashboard.',
+            variant: 'destructive',
+          });
+          navigate('/dashboard');
+        }
+      } else if (user && !isLoading) {
+        navigate('/dashboard');
+      }
+    };
+
+    handlePostLoginCheckout();
+  }, [user, isLoading, navigate, planFromUrl, billingFromUrl]);
 
   const handleGoogleSignIn = async () => {
     const { error } = await signInWithGoogle();
@@ -28,10 +65,13 @@ const Auth = () => {
     }
   };
 
-  if (isLoading) {
+  if (isLoading || isCheckingOut) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="text-muted-foreground">
+          {isCheckingOut ? 'Redirecting to checkout...' : 'Loading...'}
+        </div>
       </div>
     );
   }

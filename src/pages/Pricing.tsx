@@ -1,12 +1,14 @@
-import { Link, useNavigate } from 'react-router-dom';
-import { Heart, Check, X, ArrowRight, Sparkles } from 'lucide-react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Heart, Check, X, ArrowRight, Sparkles, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useAuth } from '@/hooks/useAuth';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-type BillingInterval = 'monthly' | 'yearly';
+import { supabase } from '@/integrations/supabase/client';
+import { STRIPE_PRICES, type BillingInterval } from '@/config/stripe';
+import { toast } from '@/hooks/use-toast';
 const tiers = [{
   name: 'Free',
   id: 'free',
@@ -116,18 +118,59 @@ const tiers = [{
   highlighted: false
 }];
 const Pricing = () => {
-  const {
-    user
-  } = useAuth();
+  const { user } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [billingInterval, setBillingInterval] = useState<BillingInterval>('yearly');
-  const handleSelectPlan = (tierId: string) => {
-    if (user) {
-      // User is logged in, handle upgrade
-      navigate('/settings');
-    } else {
-      // Redirect to auth with plan info
-      navigate(`/auth?plan=${tierId}`);
+  const [loadingTier, setLoadingTier] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (searchParams.get('checkout') === 'canceled') {
+      toast({
+        title: 'Checkout canceled',
+        description: 'Your checkout was canceled. Feel free to try again.',
+      });
+    }
+  }, [searchParams]);
+
+  const handleSelectPlan = async (tierId: string) => {
+    if (tierId === 'free') {
+      navigate(user ? '/dashboard' : '/auth');
+      return;
+    }
+
+    if (!user) {
+      // Redirect to auth with plan info, they'll complete checkout after login
+      navigate(`/auth?plan=${tierId}&billing=${billingInterval}`);
+      return;
+    }
+
+    // User is logged in, create checkout session
+    setLoadingTier(tierId);
+    try {
+      const priceConfig = STRIPE_PRICES[tierId as 'pro' | 'business'][billingInterval];
+      
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          priceId: priceConfig.priceId,
+          tier: tierId,
+          billingInterval,
+        },
+      });
+
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: any) {
+      console.error('Checkout error:', error);
+      toast({
+        title: 'Checkout failed',
+        description: error.message || 'Failed to start checkout. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingTier(null);
     }
   };
   return <div className="min-h-screen bg-background">
@@ -215,9 +258,23 @@ const Pricing = () => {
                   </ul>
                 </CardContent>
                 <CardFooter>
-                  <Button className="w-full gap-2" variant={tier.highlighted ? 'default' : 'outline'} onClick={() => handleSelectPlan(tier.id)}>
-                    {tier.cta}
-                    <ArrowRight className="w-4 h-4" />
+                  <Button 
+                    className="w-full gap-2" 
+                    variant={tier.highlighted ? 'default' : 'outline'} 
+                    onClick={() => handleSelectPlan(tier.id)}
+                    disabled={loadingTier === tier.id}
+                  >
+                    {loadingTier === tier.id ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        {tier.cta}
+                        <ArrowRight className="w-4 h-4" />
+                      </>
+                    )}
                   </Button>
                 </CardFooter>
               </Card>)}
