@@ -30,6 +30,9 @@ const Landing = () => {
               <span className="font-bold text-xl">Keep In Touch</span>
             </Link>
             <div className="flex items-center gap-4">
+              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
+                Pricing
+              </Link>
               <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
                 Privacy
               </Link>
@@ -233,6 +236,7 @@ const Landing = () => {
               <h4 className="font-semibold mb-4">Product</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
                 <li><button onClick={handleGetStarted} className="hover:text-foreground transition-colors">Get Started</button></li>
+                <li><Link to="/pricing" className="hover:text-foreground transition-colors">Pricing</Link></li>
                 <li><a href="#features" className="hover:text-foreground transition-colors">Features</a></li>
               </ul>
             </div>
