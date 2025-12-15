@@ -14,18 +14,17 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { SocialLinkButton } from '@/components/SocialLinkButton';
 import { ConversationContextDialog } from '@/components/ConversationContextDialog';
 import { BirthdayField } from '@/components/BirthdayField';
+import { EditablePhone } from '@/components/EditablePhone';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, formatDistanceToNow } from 'date-fns';
 import { 
-  Phone, 
   Calendar, 
   StickyNote, 
   MessageSquare, 
@@ -52,6 +51,8 @@ interface ContactDetailDialogProps {
   onOpenChange: (open: boolean) => void;
   categorySettings: CategorySetting[];
   onUpdateContact: (contactId: string, updates: Partial<Contact>) => Promise<void>;
+  onUpdatePhone?: (contactId: string, phone: string, googleId: string | null, shouldSyncToGoogle: boolean) => Promise<void>;
+  canSyncToGoogle?: boolean;
   onSendText?: (contact: Contact) => void;
 }
 
@@ -61,6 +62,8 @@ export const ContactDetailDialog = ({
   onOpenChange,
   categorySettings,
   onUpdateContact,
+  onUpdatePhone,
+  canSyncToGoogle = false,
   onSendText,
 }: ContactDetailDialogProps) => {
   const [editedNotes, setEditedNotes] = useState('');
@@ -156,10 +159,17 @@ export const ContactDetailDialog = ({
               )}
               <div>
                 <DialogTitle className="text-xl">{localContact.name}</DialogTitle>
-                <DialogDescription className="flex items-center gap-1.5 mt-1">
-                  <Phone className="w-4 h-4" />
-                  <span>{localContact.phone || 'No phone'}</span>
-                </DialogDescription>
+                <EditablePhone
+                  phone={localContact.phone}
+                  onSave={async (newPhone) => {
+                    if (onUpdatePhone) {
+                      await onUpdatePhone(localContact.id, newPhone, localContact.googleId || null, canSyncToGoogle);
+                    } else {
+                      await onUpdateContact(localContact.id, { phone: newPhone });
+                    }
+                    setLocalContact(prev => prev ? { ...prev, phone: newPhone } : null);
+                  }}
+                />
               </div>
             </div>
           </DialogHeader>

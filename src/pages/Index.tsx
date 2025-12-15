@@ -393,6 +393,10 @@ const Index = () => {
           onOpenChange={(open) => !open && setSelectedContact(null)}
           categorySettings={categorySettings}
           onUpdateContact={updateContact}
+          onUpdatePhone={async (id, phone, googleId, shouldSync) => {
+            await updateContactWithGoogleSync(id, { phone }, googleId, shouldSync);
+          }}
+          canSyncToGoogle={canSyncToGoogle}
         />
       </div>
     </Layout>
