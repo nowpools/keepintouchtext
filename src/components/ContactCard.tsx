@@ -28,18 +28,18 @@ const platformToUrlKey: Record<SocialPlatform, keyof DailyContact | null> = {
   linkedin: 'linkedinUrl',
   x: 'xUrl',
   youtube: 'youtubeUrl',
-  facebook: null,
-  instagram: null,
-  tiktok: null,
-  github: null,
-  threads: null,
-  snapchat: null,
-  pinterest: null,
-  reddit: null,
-  discord: null,
-  twitch: null,
-  whatsapp: null,
-  telegram: null,
+  facebook: 'facebookUrl',
+  instagram: 'instagramUrl',
+  tiktok: 'tiktokUrl',
+  github: 'githubUrl',
+  threads: 'threadsUrl',
+  snapchat: 'snapchatUrl',
+  pinterest: 'pinterestUrl',
+  reddit: 'redditUrl',
+  discord: 'discordUrl',
+  twitch: 'twitchUrl',
+  whatsapp: 'whatsappUrl',
+  telegram: 'telegramUrl',
 };
 
 interface ContactCardProps {
@@ -87,7 +87,10 @@ export const ContactCard = ({
   }, [visiblePlatforms, contact]);
 
   const hasAnyPlatformEnabled = Object.values(visiblePlatforms).some(v => v);
-  const hasAnySocialUrl = contact.linkedinUrl || contact.xUrl || contact.youtubeUrl;
+  const hasAnySocialUrl = contact.linkedinUrl || contact.xUrl || contact.youtubeUrl || 
+    contact.instagramUrl || contact.tiktokUrl || contact.facebookUrl || contact.githubUrl ||
+    contact.threadsUrl || contact.snapchatUrl || contact.pinterestUrl || contact.redditUrl ||
+    contact.discordUrl || contact.twitchUrl || contact.whatsappUrl || contact.telegramUrl;
 
   // Auto-generate message on mount if no draft exists
   useEffect(() => {

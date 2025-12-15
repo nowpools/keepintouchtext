@@ -17,6 +17,18 @@ interface DbContact {
   linkedin_url: string | null;
   x_url: string | null;
   youtube_url: string | null;
+  instagram_url: string | null;
+  tiktok_url: string | null;
+  facebook_url: string | null;
+  github_url: string | null;
+  threads_url: string | null;
+  snapchat_url: string | null;
+  pinterest_url: string | null;
+  reddit_url: string | null;
+  discord_url: string | null;
+  twitch_url: string | null;
+  whatsapp_url: string | null;
+  telegram_url: string | null;
   conversation_context: string | null;
   cadence: string;
   last_contacted: string | null;
@@ -64,6 +76,18 @@ export function useContacts() {
         linkedinUrl: c.linkedin_url || undefined,
         xUrl: c.x_url || undefined,
         youtubeUrl: c.youtube_url || undefined,
+        instagramUrl: c.instagram_url || undefined,
+        tiktokUrl: c.tiktok_url || undefined,
+        facebookUrl: c.facebook_url || undefined,
+        githubUrl: c.github_url || undefined,
+        threadsUrl: c.threads_url || undefined,
+        snapchatUrl: c.snapchat_url || undefined,
+        pinterestUrl: c.pinterest_url || undefined,
+        redditUrl: c.reddit_url || undefined,
+        discordUrl: c.discord_url || undefined,
+        twitchUrl: c.twitch_url || undefined,
+        whatsappUrl: c.whatsapp_url || undefined,
+        telegramUrl: c.telegram_url || undefined,
         conversationContext: c.conversation_context || undefined,
         cadence: (c.cadence || 'monthly') as CadenceType,
         lastContacted: c.last_contacted ? new Date(c.last_contacted) : null,
@@ -142,6 +166,18 @@ export function useContacts() {
       if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl;
       if (updates.xUrl !== undefined) dbUpdates.x_url = updates.xUrl;
       if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl;
+      if (updates.instagramUrl !== undefined) dbUpdates.instagram_url = updates.instagramUrl;
+      if (updates.tiktokUrl !== undefined) dbUpdates.tiktok_url = updates.tiktokUrl;
+      if (updates.facebookUrl !== undefined) dbUpdates.facebook_url = updates.facebookUrl;
+      if (updates.githubUrl !== undefined) dbUpdates.github_url = updates.githubUrl;
+      if (updates.threadsUrl !== undefined) dbUpdates.threads_url = updates.threadsUrl;
+      if (updates.snapchatUrl !== undefined) dbUpdates.snapchat_url = updates.snapchatUrl;
+      if (updates.pinterestUrl !== undefined) dbUpdates.pinterest_url = updates.pinterestUrl;
+      if (updates.redditUrl !== undefined) dbUpdates.reddit_url = updates.redditUrl;
+      if (updates.discordUrl !== undefined) dbUpdates.discord_url = updates.discordUrl;
+      if (updates.twitchUrl !== undefined) dbUpdates.twitch_url = updates.twitchUrl;
+      if (updates.whatsappUrl !== undefined) dbUpdates.whatsapp_url = updates.whatsappUrl;
+      if (updates.telegramUrl !== undefined) dbUpdates.telegram_url = updates.telegramUrl;
       if (updates.conversationContext !== undefined) dbUpdates.conversation_context = updates.conversationContext;
       if (updates.labels !== undefined) dbUpdates.labels = updates.labels;
       if (updates.lastContacted !== undefined) {
