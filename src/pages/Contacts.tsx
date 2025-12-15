@@ -32,7 +32,7 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X, MessageSquareText, CalendarClock, EyeOff, Eye, UserPlus, ExternalLink } from 'lucide-react';
-import { LinkedInDialog } from '@/components/LinkedInDialog';
+import { LinkedInButton } from '@/components/LinkedInButton';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -620,10 +620,7 @@ const Contacts = () => {
                         <Linkedin className="w-4 h-4" />
                         <span>LinkedIn Profile</span>
                       </div>
-                      <LinkedInDialog 
-                        linkedinUrl={selectedContact.linkedinUrl || null} 
-                        contactName={selectedContact.name} 
-                      />
+                      <LinkedInButton linkedinUrl={selectedContact.linkedinUrl || null} />
                     </div>
                     <Input
                       value={editedLinkedinUrl}
