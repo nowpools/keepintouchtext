@@ -5,6 +5,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Input validation helpers
+const MAX_NAME_LENGTH = 200;
+const MAX_NOTES_LENGTH = 5000;
+const MAX_URL_LENGTH = 500;
+const MAX_CONTEXT_LENGTH = 10000;
+
+const ALLOWED_URL_DOMAINS: Record<string, string[]> = {
+  linkedin: ['linkedin.com', 'www.linkedin.com'],
+  x: ['twitter.com', 'www.twitter.com', 'x.com', 'www.x.com'],
+  youtube: ['youtube.com', 'www.youtube.com', 'youtu.be'],
+};
+
+function isValidUrl(url: string, platform: keyof typeof ALLOWED_URL_DOMAINS): boolean {
+  if (!url || url.length > MAX_URL_LENGTH) return false;
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.toLowerCase();
+    return ALLOWED_URL_DOMAINS[platform].some(domain => hostname === domain || hostname.endsWith('.' + domain));
+  } catch {
+    return false;
+  }
+}
+
+function sanitizeString(str: string | undefined | null, maxLength: number): string {
+  if (!str) return '';
+  return str.trim().slice(0, maxLength);
+}
+
 // Generic function to fetch content using Firecrawl
 async function fetchUrlContent(url: string, platform: string): Promise<string | null> {
   const apiKey = Deno.env.get("FIRECRAWL_API_KEY");
@@ -58,7 +86,22 @@ serve(async (req) => {
   }
 
   try {
-    const { contactName, contactNotes, linkedinUrl, xUrl, youtubeUrl, conversationContext, lastContacted, tone, length, isBirthday } = await req.json();
+    const body = await req.json();
+    
+    // Validate and sanitize inputs
+    const contactName = sanitizeString(body.contactName, MAX_NAME_LENGTH);
+    const contactNotes = sanitizeString(body.contactNotes, MAX_NOTES_LENGTH);
+    const conversationContext = sanitizeString(body.conversationContext, MAX_CONTEXT_LENGTH);
+    const lastContacted = body.lastContacted;
+    const tone = ['casual', 'friendly', 'professional'].includes(body.tone) ? body.tone : 'friendly';
+    const length = ['short', 'medium', 'long'].includes(body.length) ? body.length : 'medium';
+    const isBirthday = body.isBirthday === true;
+    
+    // Validate URLs with domain whitelist
+    const linkedinUrl = body.linkedinUrl && isValidUrl(body.linkedinUrl, 'linkedin') ? body.linkedinUrl : null;
+    const xUrl = body.xUrl && isValidUrl(body.xUrl, 'x') ? body.xUrl : null;
+    const youtubeUrl = body.youtubeUrl && isValidUrl(body.youtubeUrl, 'youtube') ? body.youtubeUrl : null;
+    
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {

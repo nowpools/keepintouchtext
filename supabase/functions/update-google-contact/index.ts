@@ -5,12 +5,31 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface UpdateContactRequest {
-  accessToken: string;
-  googleId: string;
-  phone?: string;
-  name?: string;
-  email?: string;
+// Input validation constants
+const MAX_NAME_LENGTH = 200;
+const MAX_PHONE_LENGTH = 50;
+const MAX_EMAIL_LENGTH = 255;
+const GOOGLE_ID_REGEX = /^people\/c\d+$/;
+
+function sanitizeString(str: string | undefined | null, maxLength: number): string {
+  if (!str) return '';
+  return str.trim().slice(0, maxLength);
+}
+
+function isValidEmail(email: string): boolean {
+  if (!email || email.length > MAX_EMAIL_LENGTH) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function isValidPhone(phone: string): boolean {
+  if (!phone || phone.length > MAX_PHONE_LENGTH) return false;
+  const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+  return phoneRegex.test(phone);
+}
+
+function isValidGoogleId(id: string): boolean {
+  return typeof id === 'string' && GOOGLE_ID_REGEX.test(id);
 }
 
 serve(async (req) => {
@@ -20,16 +39,33 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken, googleId, phone, name, email }: UpdateContactRequest = await req.json();
+    const body = await req.json();
+    
+    const accessToken = body.accessToken;
+    const googleId = body.googleId;
 
     console.log('Updating Google contact:', googleId);
 
-    if (!accessToken) {
+    if (!accessToken || typeof accessToken !== 'string') {
       throw new Error('No access token provided');
     }
 
-    if (!googleId) {
-      throw new Error('Google contact ID is required');
+    if (!googleId || !isValidGoogleId(googleId)) {
+      throw new Error('Invalid Google contact ID format');
+    }
+    
+    // Validate and sanitize optional fields
+    const phone = body.phone !== undefined ? sanitizeString(body.phone, MAX_PHONE_LENGTH) : undefined;
+    const name = body.name !== undefined ? sanitizeString(body.name, MAX_NAME_LENGTH) : undefined;
+    const email = body.email !== undefined ? sanitizeString(body.email, MAX_EMAIL_LENGTH) : undefined;
+    
+    // Validate formats if provided
+    if (phone && phone.length > 0 && !isValidPhone(phone)) {
+      throw new Error('Invalid phone number format');
+    }
+    
+    if (email && email.length > 0 && !isValidEmail(email)) {
+      throw new Error('Invalid email address format');
     }
 
     // First, get the current contact to get the etag (required for updates)

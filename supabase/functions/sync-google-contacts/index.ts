@@ -6,6 +6,13 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Input validation
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+function isValidUUID(id: string): boolean {
+  return typeof id === 'string' && UUID_REGEX.test(id);
+}
+
 serve(async (req) => {
   // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
@@ -13,12 +20,23 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken, userId } = await req.json();
+    const body = await req.json();
+    const accessToken = body.accessToken;
+    const userId = body.userId;
 
-    if (!accessToken || !userId) {
-      console.error('Missing required parameters:', { hasToken: !!accessToken, hasUserId: !!userId });
+    // Validate required parameters
+    if (!accessToken || typeof accessToken !== 'string') {
+      console.error('Missing or invalid accessToken');
       return new Response(
-        JSON.stringify({ error: 'Missing accessToken or userId' }),
+        JSON.stringify({ error: 'Missing or invalid accessToken' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (!userId || !isValidUUID(userId)) {
+      console.error('Missing or invalid userId:', { hasUserId: !!userId, isValid: userId ? isValidUUID(userId) : false });
+      return new Response(
+        JSON.stringify({ error: 'Missing or invalid userId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
