@@ -8,7 +8,6 @@ import {
   MessageSquare, 
   Check, 
   Clock, 
-  Phone, 
   Calendar,
   Sparkles,
   ChevronDown,
@@ -20,6 +19,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAIMessage } from '@/hooks/useAIMessage';
 import { SocialLinkButton } from '@/components/SocialLinkButton';
+import { EditablePhone } from '@/components/EditablePhone';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { Link } from 'react-router-dom';
 
@@ -47,7 +47,9 @@ interface ContactCardProps {
   onComplete: (id: string) => void;
   onSnooze: (id: string) => void;
   onUpdateDraft: (id: string, draft: string) => void;
+  onUpdatePhone: (id: string, phone: string, googleId: string | null, shouldSyncToGoogle: boolean) => Promise<void>;
   onNameClick?: (contact: DailyContact) => void;
+  canSyncToGoogle: boolean;
   index: number;
 }
 
@@ -56,7 +58,9 @@ export const ContactCard = ({
   onComplete, 
   onSnooze, 
   onUpdateDraft,
+  onUpdatePhone,
   onNameClick,
+  canSyncToGoogle,
   index 
 }: ContactCardProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -66,6 +70,10 @@ export const ContactCard = ({
   const { settings } = useAppSettings();
 
   const visiblePlatforms = settings.visibleSocialPlatforms;
+
+  const handlePhoneSave = async (newPhone: string) => {
+    await onUpdatePhone(contact.id, newPhone, contact.googleId || null, canSyncToGoogle);
+  };
 
   // Get platforms that are both enabled AND have a URL
   const enabledPlatformsWithUrls = useMemo(() => {
@@ -242,10 +250,10 @@ export const ContactCard = ({
           >
             {contact.name}
           </h3>
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Phone className="w-3.5 h-3.5" />
-            <span>{contact.phone}</span>
-          </div>
+          <EditablePhone 
+            phone={contact.phone} 
+            onSave={handlePhoneSave}
+          />
         </div>
 
         <div className="flex items-center gap-1">
