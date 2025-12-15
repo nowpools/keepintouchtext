@@ -15,7 +15,7 @@ serve(async (req) => {
     
     if (!linkedinUrl) {
       return new Response(
-        JSON.stringify({ error: "LinkedIn URL is required" }),
+        JSON.stringify({ success: false, error: "LinkedIn URL is required" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -24,7 +24,7 @@ serve(async (req) => {
     if (!apiKey) {
       console.error("FIRECRAWL_API_KEY not configured");
       return new Response(
-        JSON.stringify({ error: "Firecrawl not configured" }),
+        JSON.stringify({ success: false, error: "Firecrawl not configured" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -48,8 +48,27 @@ serve(async (req) => {
     if (!response.ok) {
       const errorText = await response.text();
       console.error("Firecrawl error:", response.status, errorText);
+
+      let friendly = "Failed to fetch LinkedIn profile";
+      try {
+        const parsed = JSON.parse(errorText);
+        const raw = parsed?.error || parsed?.message || "";
+        if (typeof raw === "string" && raw.length) friendly = raw;
+      } catch (_) {
+        // ignore
+      }
+
+      // Firecrawl sometimes blocks unsupported domains like LinkedIn on certain plans
+      if (
+        response.status === 403 &&
+        /not currently supported|not supported/i.test(errorText)
+      ) {
+        friendly =
+          "LinkedIn scraping is blocked by the scraping provider for this project. You can still open the profile in LinkedIn.";
+      }
+
       return new Response(
-        JSON.stringify({ error: "Failed to fetch LinkedIn profile" }),
+        JSON.stringify({ success: false, error: friendly }),
         { status: response.status, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
