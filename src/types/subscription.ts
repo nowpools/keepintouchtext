@@ -36,6 +36,7 @@ export interface TierFeatures {
   manualNotes: boolean;
   openInMessaging: boolean;
   markDone: boolean;
+  dynamicDailyCalc: boolean; // Allow blank daily max for dynamic calculation
   
   // Business features
   aiToneSetting: boolean;
@@ -61,6 +62,7 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     manualNotes: true,
     openInMessaging: true,
     markDone: true,
+    dynamicDailyCalc: false,
     aiToneSetting: false,
     exportHistory: false,
     overrideFollowUp: false,
@@ -82,6 +84,7 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     manualNotes: true,
     openInMessaging: true,
     markDone: true,
+    dynamicDailyCalc: true,
     aiToneSetting: false,
     exportHistory: false,
     overrideFollowUp: false,
@@ -103,6 +106,7 @@ export const TIER_FEATURES: Record<SubscriptionTier, TierFeatures> = {
     manualNotes: true,
     openInMessaging: true,
     markDone: true,
+    dynamicDailyCalc: true,
     aiToneSetting: true,
     exportHistory: true,
     overrideFollowUp: true,

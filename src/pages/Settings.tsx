@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Layout } from '@/components/Layout';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -48,7 +48,16 @@ const Settings = () => {
   const [isExporting, setIsExporting] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: '', description: '', cadenceDays: 30 });
-  const [dailyContactsInput, setDailyContactsInput] = useState<string>(settings.maxDailyContacts.toString());
+  const [dailyContactsInput, setDailyContactsInput] = useState<string>(
+    settings.maxDailyContacts === null ? '' : settings.maxDailyContacts.toString()
+  );
+
+  // Sync input when settings change (e.g., on load)
+  useEffect(() => {
+    setDailyContactsInput(settings.maxDailyContacts === null ? '' : settings.maxDailyContacts.toString());
+  }, [settings.maxDailyContacts]);
+
+  const canUseUnlimitedDaily = features.dynamicDailyCalc || isTrialActive;
 
   const recommendedDailyContacts = useMemo(() => {
     if (contacts.length === 0 || categorySettings.length === 0) return 0;
@@ -79,8 +88,29 @@ const Settings = () => {
   }, [contacts, categorySettings]);
 
   const handleSync = async () => { setIsSyncing(true); await new Promise(r => setTimeout(r, 2000)); setIsSyncing(false); toast({ title: "Sync complete", description: "Your Google Contacts have been synced." }); };
-  const handleDailyContactsChange = (value: string) => { setDailyContactsInput(value); const numValue = parseInt(value); if (!isNaN(numValue) && numValue >= 1 && numValue <= 50) updateMaxDailyContacts(numValue); };
-  const isDailyContactsValid = () => { const numValue = parseInt(dailyContactsInput); return !isNaN(numValue) && numValue >= 1 && numValue <= 50; };
+  
+  const handleDailyContactsChange = (value: string) => { 
+    setDailyContactsInput(value); 
+    
+    // Allow blank for Pro/Business users (null = dynamic)
+    if (value === '' && canUseUnlimitedDaily) {
+      updateMaxDailyContacts(null);
+      return;
+    }
+    
+    const numValue = parseInt(value); 
+    if (!isNaN(numValue) && numValue >= 1 && numValue <= 50) {
+      updateMaxDailyContacts(numValue);
+    }
+  };
+  
+  const isDailyContactsValid = () => { 
+    // Blank is valid for Pro/Business
+    if (dailyContactsInput === '' && canUseUnlimitedDaily) return true;
+    const numValue = parseInt(dailyContactsInput); 
+    return !isNaN(numValue) && numValue >= 1 && numValue <= 50; 
+  };
+  
   const handleCadenceChange = async (categoryId: string, days: number) => { await updateCategorySetting(categoryId, { cadence_days: days }); };
   const handleAddCategory = async () => {
     if (!newCategory.name.trim()) { toast({ title: 'Name required', description: 'Please enter a category name', variant: 'destructive' }); return; }
@@ -88,7 +118,13 @@ const Settings = () => {
     if (result) { setNewCategory({ name: '', description: '', cadenceDays: 30 }); setIsAddingCategory(false); toast({ title: 'Category added', description: `"${result.label_name}" has been created.` }); }
   };
   const handleDeleteCategory = async (id: string, name: string) => { const success = await deleteCategorySetting(id); if (success) toast({ title: 'Category deleted', description: `"${name}" has been removed.` }); };
-  const handleSave = () => { if (!isDailyContactsValid()) { toast({ title: 'Invalid value', description: 'Daily contacts must be between 1 and 50', variant: 'destructive' }); return; } toast({ title: "Settings saved", description: "Your preferences have been updated." }); };
+  const handleSave = () => { 
+    if (!isDailyContactsValid()) { 
+      toast({ title: 'Invalid value', description: 'Daily contacts must be between 1 and 50 (or blank for Pro/Business)', variant: 'destructive' }); 
+      return; 
+    } 
+    toast({ title: "Settings saved", description: "Your preferences have been updated." }); 
+  };
   
   const handleExport = async () => {
     if (!features.exportHistory && !isTrialActive) {
@@ -148,18 +184,38 @@ const Settings = () => {
           <div className="flex items-start gap-4">
             <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Calendar className="w-5 h-5 text-primary" /></div>
             <div className="flex-1 space-y-4">
-              <div><h3 className="font-semibold">Daily Contacts</h3><p className="text-sm text-muted-foreground">Maximum number of contacts to show each day on Today's screen</p></div>
-              <div className="flex items-center gap-4">
-                <Input type="number" min={1} max={50} value={dailyContactsInput} onChange={(e) => handleDailyContactsChange(e.target.value)} className={`w-24 ${!isDailyContactsValid() ? 'border-destructive' : ''}`} />
-                <span className="text-sm text-muted-foreground">contacts per day</span>
+              <div>
+                <h3 className="font-semibold">Daily Contacts</h3>
+                <p className="text-sm text-muted-foreground">
+                  Maximum number of contacts to show each day on Today's screen
+                  {canUseUnlimitedDaily && <span className="text-primary"> (leave blank for dynamic)</span>}
+                </p>
               </div>
-              {!isDailyContactsValid() && dailyContactsInput && <p className="text-sm text-destructive">Enter a number between 1 and 50</p>}
+              <div className="flex items-center gap-4">
+                <Input 
+                  type="text" 
+                  inputMode="numeric"
+                  value={dailyContactsInput} 
+                  onChange={(e) => handleDailyContactsChange(e.target.value)} 
+                  className={`w-24 ${!isDailyContactsValid() ? 'border-destructive' : ''}`}
+                  placeholder={canUseUnlimitedDaily ? "Auto" : "5"} 
+                />
+                <span className="text-sm text-muted-foreground">
+                  {dailyContactsInput === '' && canUseUnlimitedDaily ? 'dynamic (all due contacts)' : 'contacts per day'}
+                </span>
+              </div>
+              {!isDailyContactsValid() && dailyContactsInput !== '' && (
+                <p className="text-sm text-destructive">Enter a number between 1 and 50{canUseUnlimitedDaily ? ' (or leave blank for dynamic)' : ''}</p>
+              )}
+              {dailyContactsInput === '' && canUseUnlimitedDaily && (
+                <p className="text-xs text-success">✓ Dynamic mode: All birthday, follow-up, and cadence-due contacts will appear</p>
+              )}
               {contacts.length > 0 && categorySettings.length > 0 && (
                 <div className="mt-4 p-4 rounded-lg bg-muted/50 space-y-3">
                   <div className="flex items-center gap-2"><Calculator className="w-4 h-4 text-primary" /><span className="font-medium text-sm">Recommended: {recommendedDailyContacts} contacts/day</span></div>
                   <p className="text-xs text-muted-foreground">Based on your {contacts.length} contacts and their category cadences.</p>
                   {categoryBreakdown.length > 0 && (<div className="space-y-1 mt-2"><p className="text-xs font-medium text-muted-foreground">Breakdown by category:</p>{categoryBreakdown.map((item) => (<div key={item.name} className="text-xs text-muted-foreground flex justify-between"><span>{item.name} ({item.count} ÷ {item.cadenceDays} days)</span><span className="font-medium">≈ {item.dailyNeeded.toFixed(1)}/day</span></div>))}</div>)}
-                  {recommendedDailyContacts > settings.maxDailyContacts && (<Button variant="outline" size="sm" className="mt-2" onClick={() => { setDailyContactsInput(recommendedDailyContacts.toString()); updateMaxDailyContacts(recommendedDailyContacts); }}>Use recommended ({recommendedDailyContacts})</Button>)}
+                  {settings.maxDailyContacts !== null && recommendedDailyContacts > settings.maxDailyContacts && (<Button variant="outline" size="sm" className="mt-2" onClick={() => { setDailyContactsInput(recommendedDailyContacts.toString()); updateMaxDailyContacts(recommendedDailyContacts); }}>Use recommended ({recommendedDailyContacts})</Button>)}
                 </div>
               )}
             </div>

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppSettings, SortOrderType, SocialPlatform, SocialPlatformSettings } from '@/types/contact';
+import { SortOrderType, SocialPlatform, SocialPlatformSettings, CadenceSettings } from '@/types/contact';
 
 const STORAGE_KEY = 'kitSettings';
 
@@ -21,7 +21,17 @@ const DEFAULT_SOCIAL_PLATFORMS: SocialPlatformSettings = {
   telegram: false,
 };
 
-const DEFAULT_SETTINGS: AppSettings = {
+// Extended settings to support null for maxDailyContacts
+export interface ExtendedAppSettings {
+  maxDailyContacts: number | null;
+  cadenceSettings: CadenceSettings;
+  aiTone: 'casual' | 'professional' | 'friendly';
+  aiLength: 'short' | 'medium' | 'long';
+  sortOrder: SortOrderType;
+  visibleSocialPlatforms: SocialPlatformSettings;
+}
+
+const DEFAULT_SETTINGS: ExtendedAppSettings = {
   maxDailyContacts: 5,
   cadenceSettings: {
     daily: 1,
@@ -38,7 +48,7 @@ const DEFAULT_SETTINGS: AppSettings = {
 };
 
 export function useAppSettings() {
-  const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettings] = useState<ExtendedAppSettings>(DEFAULT_SETTINGS);
   const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
@@ -46,7 +56,14 @@ export function useAppSettings() {
     if (stored) {
       try {
         const parsed = JSON.parse(stored);
-        setSettings({ ...DEFAULT_SETTINGS, ...parsed });
+        // Handle migration - preserve null if explicitly set
+        const mergedSettings = { ...DEFAULT_SETTINGS, ...parsed };
+        // Ensure visibleSocialPlatforms is properly merged
+        mergedSettings.visibleSocialPlatforms = {
+          ...DEFAULT_SOCIAL_PLATFORMS,
+          ...parsed.visibleSocialPlatforms,
+        };
+        setSettings(mergedSettings);
       } catch (e) {
         console.error('Error parsing settings:', e);
       }
@@ -54,7 +71,7 @@ export function useAppSettings() {
     setIsLoaded(true);
   }, []);
 
-  const updateSettings = useCallback((updates: Partial<AppSettings>) => {
+  const updateSettings = useCallback((updates: Partial<ExtendedAppSettings>) => {
     setSettings(prev => {
       const newSettings = { ...prev, ...updates };
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
@@ -62,8 +79,8 @@ export function useAppSettings() {
     });
   }, []);
 
-  const updateMaxDailyContacts = useCallback((value: number) => {
-    if (value >= 1 && value <= 50) {
+  const updateMaxDailyContacts = useCallback((value: number | null) => {
+    if (value === null || (value >= 1 && value <= 50)) {
       updateSettings({ maxDailyContacts: value });
     }
   }, [updateSettings]);
