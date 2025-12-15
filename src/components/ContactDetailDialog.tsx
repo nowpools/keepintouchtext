@@ -350,7 +350,7 @@ export const ContactDetailDialog = ({
             </div>
 
             <p className="text-xs text-muted-foreground">
-              Social profiles help the AI reference recent posts and generate more personalized messages
+              Click the icons to view their profiles and gather context for personalized messages
             </p>
 
             {/* Conversation Context Button */}
