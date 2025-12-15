@@ -31,8 +31,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Tag, X, MessageSquareText, CalendarClock, EyeOff, Eye, UserPlus, ExternalLink } from 'lucide-react';
-import { LinkedInButton } from '@/components/LinkedInButton';
+import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Twitter, Youtube, Tag, X, MessageSquareText, CalendarClock, EyeOff, Eye, UserPlus, ExternalLink } from 'lucide-react';
+import { SocialLinkButton } from '@/components/SocialLinkButton';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
@@ -55,6 +55,8 @@ const Contacts = () => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [editedNotes, setEditedNotes] = useState('');
   const [editedLinkedinUrl, setEditedLinkedinUrl] = useState('');
+  const [editedXUrl, setEditedXUrl] = useState('');
+  const [editedYoutubeUrl, setEditedYoutubeUrl] = useState('');
   const [sendTextContact, setSendTextContact] = useState<Contact | null>(null);
   
   // Bulk selection state
@@ -80,6 +82,8 @@ const Contacts = () => {
     if (selectedContact) {
       setEditedNotes(selectedContact.notes || '');
       setEditedLinkedinUrl(selectedContact.linkedinUrl || '');
+      setEditedXUrl(selectedContact.xUrl || '');
+      setEditedYoutubeUrl(selectedContact.youtubeUrl || '');
       setShowCadenceOverride(false);
     }
   }, [selectedContact?.id]);
@@ -161,6 +165,20 @@ const Contacts = () => {
     if (selectedContact && editedLinkedinUrl !== (selectedContact.linkedinUrl || '')) {
       await updateContact(selectedContact.id, { linkedinUrl: editedLinkedinUrl });
       setSelectedContact(prev => prev ? { ...prev, linkedinUrl: editedLinkedinUrl } : null);
+    }
+  };
+
+  const handleXBlur = async () => {
+    if (selectedContact && editedXUrl !== (selectedContact.xUrl || '')) {
+      await updateContact(selectedContact.id, { xUrl: editedXUrl });
+      setSelectedContact(prev => prev ? { ...prev, xUrl: editedXUrl } : null);
+    }
+  };
+
+  const handleYoutubeBlur = async () => {
+    if (selectedContact && editedYoutubeUrl !== (selectedContact.youtubeUrl || '')) {
+      await updateContact(selectedContact.id, { youtubeUrl: editedYoutubeUrl });
+      setSelectedContact(prev => prev ? { ...prev, youtubeUrl: editedYoutubeUrl } : null);
     }
   };
 
@@ -618,9 +636,9 @@ const Contacts = () => {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2 text-sm font-medium">
                         <Linkedin className="w-4 h-4" />
-                        <span>LinkedIn Profile</span>
+                        <span>LinkedIn</span>
                       </div>
-                      <LinkedInButton linkedinUrl={selectedContact.linkedinUrl || null} />
+                      <SocialLinkButton url={selectedContact.linkedinUrl} platform="linkedin" />
                     </div>
                     <Input
                       value={editedLinkedinUrl}
@@ -629,10 +647,47 @@ const Contacts = () => {
                       placeholder="https://linkedin.com/in/username"
                       type="url"
                     />
-                    <p className="text-xs text-muted-foreground">
-                      LinkedIn helps the AI reference recent posts and professional context
-                    </p>
                   </div>
+
+                  {/* X/Twitter URL */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Twitter className="w-4 h-4" />
+                        <span>X (Twitter)</span>
+                      </div>
+                      <SocialLinkButton url={selectedContact.xUrl} platform="x" />
+                    </div>
+                    <Input
+                      value={editedXUrl}
+                      onChange={(e) => setEditedXUrl(e.target.value)}
+                      onBlur={handleXBlur}
+                      placeholder="https://x.com/username"
+                      type="url"
+                    />
+                  </div>
+
+                  {/* YouTube URL */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Youtube className="w-4 h-4" />
+                        <span>YouTube</span>
+                      </div>
+                      <SocialLinkButton url={selectedContact.youtubeUrl} platform="youtube" />
+                    </div>
+                    <Input
+                      value={editedYoutubeUrl}
+                      onChange={(e) => setEditedYoutubeUrl(e.target.value)}
+                      onBlur={handleYoutubeBlur}
+                      placeholder="https://youtube.com/@channel"
+                      type="url"
+                    />
+                  </div>
+
+                  <p className="text-xs text-muted-foreground">
+                    Social profiles help the AI reference recent posts and generate personalized messages
+                  </p>
 
                   {/* Conversation Context Button */}
                   <Button

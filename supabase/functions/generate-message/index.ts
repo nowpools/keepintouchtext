@@ -5,16 +5,16 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Fetch LinkedIn profile content using Firecrawl
-async function fetchLinkedInContent(linkedinUrl: string): Promise<string | null> {
+// Generic function to fetch content using Firecrawl
+async function fetchUrlContent(url: string, platform: string): Promise<string | null> {
   const apiKey = Deno.env.get("FIRECRAWL_API_KEY");
   if (!apiKey) {
-    console.log("FIRECRAWL_API_KEY not configured, skipping LinkedIn scrape");
+    console.log(`FIRECRAWL_API_KEY not configured, skipping ${platform} scrape`);
     return null;
   }
 
   try {
-    console.log("Scraping LinkedIn URL:", linkedinUrl);
+    console.log(`Scraping ${platform} URL:`, url);
     
     const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
       method: "POST",
@@ -23,15 +23,15 @@ async function fetchLinkedInContent(linkedinUrl: string): Promise<string | null>
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        url: linkedinUrl,
+        url: url,
         formats: ["markdown"],
         onlyMainContent: true,
-        waitFor: 3000, // Wait for dynamic content to load
+        waitFor: 3000,
       }),
     });
 
     if (!response.ok) {
-      console.error("Firecrawl error:", response.status, await response.text());
+      console.error(`Firecrawl error for ${platform}:`, response.status, await response.text());
       return null;
     }
 
@@ -39,15 +39,15 @@ async function fetchLinkedInContent(linkedinUrl: string): Promise<string | null>
     const markdown = data.data?.markdown || data.markdown;
     
     if (markdown) {
-      // Limit content to avoid token limits - extract most relevant parts
-      const truncated = markdown.substring(0, 2000);
-      console.log("LinkedIn content fetched successfully, length:", truncated.length);
+      // Limit content to avoid token limits
+      const truncated = markdown.substring(0, 1500);
+      console.log(`${platform} content fetched successfully, length:`, truncated.length);
       return truncated;
     }
     
     return null;
   } catch (error) {
-    console.error("Error fetching LinkedIn content:", error);
+    console.error(`Error fetching ${platform} content:`, error);
     return null;
   }
 }
@@ -58,21 +58,19 @@ serve(async (req) => {
   }
 
   try {
-    const { contactName, contactNotes, linkedinUrl, conversationContext, lastContacted, tone, length } = await req.json();
+    const { contactName, contactNotes, linkedinUrl, xUrl, youtubeUrl, conversationContext, lastContacted, tone, length } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Build context from contact info
-    let context = "";
-    
-    // Fetch LinkedIn content using Firecrawl if URL provided
-    let linkedinContent: string | null = null;
-    if (linkedinUrl) {
-      linkedinContent = await fetchLinkedInContent(linkedinUrl);
-    }
+    // Fetch content from social platforms in parallel
+    const [linkedinContent, xContent, youtubeContent] = await Promise.all([
+      linkedinUrl ? fetchUrlContent(linkedinUrl, "LinkedIn") : Promise.resolve(null),
+      xUrl ? fetchUrlContent(xUrl, "X/Twitter") : Promise.resolve(null),
+      youtubeUrl ? fetchUrlContent(youtubeUrl, "YouTube") : Promise.resolve(null),
+    ]);
     
     // Build rich context
     const contextParts: string[] = [];
@@ -85,10 +83,25 @@ serve(async (req) => {
       contextParts.push(`Personal notes about ${contactName}: "${contactNotes}"`);
     }
     
+    // LinkedIn context
     if (linkedinContent) {
       contextParts.push(`Their LinkedIn profile content:\n${linkedinContent}`);
     } else if (linkedinUrl) {
       contextParts.push(`They have a LinkedIn profile at ${linkedinUrl}`);
+    }
+    
+    // X/Twitter context
+    if (xContent) {
+      contextParts.push(`Their recent X/Twitter activity:\n${xContent}`);
+    } else if (xUrl) {
+      contextParts.push(`They are on X/Twitter at ${xUrl}`);
+    }
+    
+    // YouTube context
+    if (youtubeContent) {
+      contextParts.push(`Their YouTube channel/content:\n${youtubeContent}`);
+    } else if (youtubeUrl) {
+      contextParts.push(`They have a YouTube presence at ${youtubeUrl}`);
     }
     
     if (lastContacted) {
@@ -109,6 +122,7 @@ serve(async (req) => {
       }
     }
 
+    let context = "";
     if (contextParts.length > 0) {
       context = `\n\nContext about this person:\n${contextParts.join("\n\n")}`;
     }
@@ -142,7 +156,7 @@ Critical rules:
 - Sound like a real person, not a bot or assistant
 - If there are notes about them, weave in something specific naturally (don't force it)
 - If there's conversation context, reference topics or things mentioned naturally to show you remember previous interactions
-- If there's a LinkedIn profile mentioned, you can subtly acknowledge their professional world but don't be weird about it
+- If there's social media content (LinkedIn, X/Twitter, YouTube), you can subtly acknowledge their professional world or recent posts but don't be weird about it
 - Don't be overly enthusiastic or use too many exclamation marks
 - Match how real people actually text - contractions, natural flow
 - Be curious and genuine - ask about something real

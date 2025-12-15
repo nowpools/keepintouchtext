@@ -121,6 +121,8 @@ const Index = () => {
       labels: contact.labels,
       notes: contact.notes,
       linkedinUrl: contact.linkedinUrl,
+      xUrl: contact.xUrl,
+      youtubeUrl: contact.youtubeUrl,
       conversationContext: contact.conversationContext,
       cadence: contact.cadence,
       lastContacted: contact.lastContacted,
