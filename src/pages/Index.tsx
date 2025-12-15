@@ -65,6 +65,9 @@ const Index = () => {
   const hasStreakFeature = features.streakTracking || isTrialActive;
   const hasBirthdayReminders = features.birthdayField || isTrialActive;
 
+  // Check if dynamic daily calc is available (null maxDaily)
+  const hasDynamicDaily = features.dynamicDailyCalc || isTrialActive;
+
   // Calculate today's contacts based on category cadence, birthdays, and follow-up overrides
   const todaysContacts: DailyContact[] = useMemo(() => {
     const today = new Date();
@@ -72,16 +75,18 @@ const Index = () => {
     
     // Track which contacts we've added to avoid duplicates
     const addedIds = new Set<string>();
-    const result: DailyContact[] = [];
+    const birthdayContacts: DailyContact[] = [];
+    const followUpContacts: DailyContact[] = [];
+    const cadenceContacts: DailyContact[] = [];
 
-    // 1. First, add birthday contacts (Pro/Business only) - they always appear
+    // 1. First, collect birthday contacts (Pro/Business only) - they always appear
     if (hasBirthdayReminders) {
       contacts
         .filter(contact => !contact.isHidden && isBirthdayToday(contact))
         .forEach(contact => {
           if (!addedIds.has(contact.id)) {
             addedIds.add(contact.id);
-            result.push({
+            birthdayContacts.push({
               ...contact,
               isCompleted: completedIds.has(contact.id),
               isSnoozed: snoozedIds.has(contact.id),
@@ -91,7 +96,7 @@ const Index = () => {
         });
     }
 
-    // 2. Add contacts with follow-up override set to today
+    // 2. Collect contacts with follow-up override set to today
     contacts
       .filter(contact => !contact.isHidden && contact.followUpOverride)
       .forEach(contact => {
@@ -99,7 +104,7 @@ const Index = () => {
           const overrideDate = new Date(contact.followUpOverride);
           if (isSameDay(overrideDate, today)) {
             addedIds.add(contact.id);
-            result.push({
+            followUpContacts.push({
               ...contact,
               isCompleted: completedIds.has(contact.id),
               isSnoozed: snoozedIds.has(contact.id),
@@ -109,7 +114,7 @@ const Index = () => {
         }
       });
 
-    // 3. Add cadence-based contacts up to the daily limit
+    // 3. Collect cadence-based contacts
     const dueContacts = contacts
       .filter(contact => {
         if (contact.isHidden) return false;
@@ -134,31 +139,47 @@ const Index = () => {
         surfaceReason: 'cadence' as ContactSurfaceReason,
       }));
 
-    // Sort based on user preference
-    let sortedDueContacts: typeof dueContacts;
+    // Apply selection logic based on sort order setting
+    let selectedCadenceContacts: typeof dueContacts;
     if (settings.sortOrder === 'random') {
-      sortedDueContacts = [...dueContacts].sort((a, b) => {
+      // Random SELECTION, but we'll sort alphabetically for DISPLAY
+      selectedCadenceContacts = [...dueContacts].sort((a, b) => {
         const aRand = seededRandom(todaySeed + a.id.charCodeAt(0));
         const bRand = seededRandom(todaySeed + b.id.charCodeAt(0));
         return aRand - bRand;
       });
     } else {
-      sortedDueContacts = [...dueContacts].sort((a, b) => a.name.localeCompare(b.name));
+      selectedCadenceContacts = [...dueContacts].sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    // Calculate remaining slots
+    // Calculate how many cadence contacts to include
     const maxDaily = settings.maxDailyContacts;
-    const birthdayAndOverrideCount = result.length;
-    const remainingSlots = Math.max(0, maxDaily - birthdayAndOverrideCount);
+    const priorityCount = birthdayContacts.length + followUpContacts.length;
     
-    // Add cadence contacts up to remaining slots
-    sortedDueContacts
+    let cadenceSlots: number;
+    if (maxDaily === null && hasDynamicDaily) {
+      // Pro/Business with blank = include all due contacts
+      cadenceSlots = selectedCadenceContacts.length;
+    } else {
+      // Apply the max limit, but birthday/follow-up always show
+      const effectiveMax = maxDaily ?? 5; // fallback for free users
+      cadenceSlots = Math.max(0, effectiveMax - priorityCount);
+    }
+    
+    // Add cadence contacts up to the slot limit
+    selectedCadenceContacts
       .filter(c => !c.isSnoozed)
-      .slice(0, remainingSlots)
-      .forEach(contact => result.push(contact));
+      .slice(0, cadenceSlots)
+      .forEach(contact => cadenceContacts.push(contact));
 
-    return result;
-  }, [contacts, completedIds, snoozedIds, categoryCadenceMap, settings.maxDailyContacts, settings.sortOrder, hasBirthdayReminders]);
+    // Combine all and sort ALPHABETICALLY for display
+    const allContacts = [...birthdayContacts, ...followUpContacts, ...cadenceContacts];
+    
+    // Final sort: alphabetically by name for display
+    allContacts.sort((a, b) => a.name.localeCompare(b.name));
+
+    return allContacts;
+  }, [contacts, completedIds, snoozedIds, categoryCadenceMap, settings.maxDailyContacts, settings.sortOrder, hasBirthdayReminders, hasDynamicDaily]);
 
   const handleComplete = async (id: string) => {
     setCompletedIds(prev => new Set(prev).add(id));

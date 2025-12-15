@@ -38,6 +38,7 @@ import {
   EyeOff, 
   Eye 
 } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
 
 interface CategorySetting {
   id: string;
@@ -69,6 +70,9 @@ export const ContactDetailDialog = ({
   const [showConversationContextDialog, setShowConversationContextDialog] = useState(false);
   const [showCadenceOverride, setShowCadenceOverride] = useState(false);
   const [localContact, setLocalContact] = useState<Contact | null>(null);
+  const { features, isTrialActive } = useSubscription();
+  
+  const hasBirthdayFeature = features.birthdayField || isTrialActive;
 
   useEffect(() => {
     if (contact) {
@@ -278,25 +282,27 @@ export const ContactDetailDialog = ({
               </div>
             )}
 
-            {/* Birthday */}
-            <BirthdayField
-              month={localContact.birthdayMonth}
-              day={localContact.birthdayDay}
-              year={localContact.birthdayYear}
-              onChange={async (birthday) => {
-                await onUpdateContact(localContact.id, {
-                  birthdayMonth: birthday.month,
-                  birthdayDay: birthday.day,
-                  birthdayYear: birthday.year,
-                });
-                setLocalContact(prev => prev ? {
-                  ...prev,
-                  birthdayMonth: birthday.month,
-                  birthdayDay: birthday.day,
-                  birthdayYear: birthday.year,
-                } : null);
-              }}
-            />
+            {/* Birthday - Pro/Business only */}
+            {hasBirthdayFeature && (
+              <BirthdayField
+                month={localContact.birthdayMonth}
+                day={localContact.birthdayDay}
+                year={localContact.birthdayYear}
+                onChange={async (birthday) => {
+                  await onUpdateContact(localContact.id, {
+                    birthdayMonth: birthday.month,
+                    birthdayDay: birthday.day,
+                    birthdayYear: birthday.year,
+                  });
+                  setLocalContact(prev => prev ? {
+                    ...prev,
+                    birthdayMonth: birthday.month,
+                    birthdayDay: birthday.day,
+                    birthdayYear: birthday.year,
+                  } : null);
+                }}
+              />
+            )}
 
             {/* Notes */}
             <div className="space-y-2">

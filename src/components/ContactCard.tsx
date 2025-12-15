@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { DailyContact, CADENCE_LABELS } from '@/types/contact';
+import { useState, useEffect, useMemo } from 'react';
+import { DailyContact, CADENCE_LABELS, SocialPlatform } from '@/types/contact';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -22,6 +22,25 @@ import { useAIMessage } from '@/hooks/useAIMessage';
 import { SocialLinkButton } from '@/components/SocialLinkButton';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { Link } from 'react-router-dom';
+
+// Map platform keys to their contact URL property names
+const platformToUrlKey: Record<SocialPlatform, keyof DailyContact | null> = {
+  linkedin: 'linkedinUrl',
+  x: 'xUrl',
+  youtube: 'youtubeUrl',
+  facebook: null,
+  instagram: null,
+  tiktok: null,
+  github: null,
+  threads: null,
+  snapchat: null,
+  pinterest: null,
+  reddit: null,
+  discord: null,
+  twitch: null,
+  whatsapp: null,
+  telegram: null,
+};
 
 interface ContactCardProps {
   contact: DailyContact;
@@ -47,6 +66,26 @@ export const ContactCard = ({
   const { settings } = useAppSettings();
 
   const visiblePlatforms = settings.visibleSocialPlatforms;
+
+  // Get platforms that are both enabled AND have a URL
+  const enabledPlatformsWithUrls = useMemo(() => {
+    const platforms: { platform: SocialPlatform; url: string }[] = [];
+    
+    (Object.keys(visiblePlatforms) as SocialPlatform[]).forEach((platform) => {
+      if (!visiblePlatforms[platform]) return; // Not enabled in settings
+      
+      const urlKey = platformToUrlKey[platform];
+      if (urlKey) {
+        const url = contact[urlKey];
+        if (url && typeof url === 'string') {
+          platforms.push({ platform, url });
+        }
+      }
+    });
+    
+    return platforms;
+  }, [visiblePlatforms, contact]);
+
   const hasAnyPlatformEnabled = Object.values(visiblePlatforms).some(v => v);
   const hasAnySocialUrl = contact.linkedinUrl || contact.xUrl || contact.youtubeUrl;
 
@@ -206,13 +245,13 @@ export const ContactCard = ({
         </div>
 
         <div className="flex items-center gap-1">
-          {hasAnyPlatformEnabled ? (
+          {enabledPlatformsWithUrls.length > 0 ? (
             <>
-              <SocialLinkButton url={contact.linkedinUrl} platform="linkedin" isVisible={visiblePlatforms.linkedin} />
-              <SocialLinkButton url={contact.xUrl} platform="x" isVisible={visiblePlatforms.x} />
-              <SocialLinkButton url={contact.youtubeUrl} platform="youtube" isVisible={visiblePlatforms.youtube} />
+              {enabledPlatformsWithUrls.map(({ platform, url }) => (
+                <SocialLinkButton key={platform} url={url} platform={platform} />
+              ))}
             </>
-          ) : hasAnySocialUrl ? (
+          ) : hasAnySocialUrl && !hasAnyPlatformEnabled ? (
             <Link 
               to="/settings" 
               className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mr-2"
