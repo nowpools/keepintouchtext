@@ -6,13 +6,28 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface CreateContactRequest {
-  accessToken: string;
-  userId: string;
-  name: string;
-  phone?: string;
-  email?: string;
-  notes?: string;
+// Input validation constants
+const MAX_NAME_LENGTH = 200;
+const MAX_PHONE_LENGTH = 50;
+const MAX_EMAIL_LENGTH = 255;
+const MAX_NOTES_LENGTH = 5000;
+
+function sanitizeString(str: string | undefined | null, maxLength: number): string {
+  if (!str) return '';
+  return str.trim().slice(0, maxLength);
+}
+
+function isValidEmail(email: string): boolean {
+  if (!email || email.length > MAX_EMAIL_LENGTH) return false;
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+}
+
+function isValidPhone(phone: string): boolean {
+  if (!phone || phone.length > MAX_PHONE_LENGTH) return false;
+  // Allow digits, spaces, dashes, parentheses, and plus sign
+  const phoneRegex = /^[\d\s\-\(\)\+]+$/;
+  return phoneRegex.test(phone);
 }
 
 serve(async (req) => {
@@ -22,7 +37,15 @@ serve(async (req) => {
   }
 
   try {
-    const { accessToken, userId, name, phone, email, notes }: CreateContactRequest = await req.json();
+    const body = await req.json();
+
+    // Validate and sanitize inputs
+    const accessToken = body.accessToken;
+    const userId = body.userId;
+    const name = sanitizeString(body.name, MAX_NAME_LENGTH);
+    const phone = body.phone ? sanitizeString(body.phone, MAX_PHONE_LENGTH) : null;
+    const email = body.email ? sanitizeString(body.email, MAX_EMAIL_LENGTH) : null;
+    const notes = sanitizeString(body.notes, MAX_NOTES_LENGTH);
 
     console.log('Creating contact for user:', userId);
     console.log('Contact name:', name);
@@ -33,6 +56,16 @@ serve(async (req) => {
 
     if (!name) {
       throw new Error('Contact name is required');
+    }
+
+    // Validate phone format if provided
+    if (phone && !isValidPhone(phone)) {
+      throw new Error('Invalid phone number format');
+    }
+
+    // Validate email format if provided
+    if (email && !isValidEmail(email)) {
+      throw new Error('Invalid email address format');
     }
 
     // Create contact in Google Contacts
