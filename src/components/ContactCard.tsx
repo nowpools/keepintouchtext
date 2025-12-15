@@ -18,7 +18,7 @@ import {
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAIMessage } from '@/hooks/useAIMessage';
-import { LinkedInDialog } from '@/components/LinkedInDialog';
+import { LinkedInButton } from '@/components/LinkedInButton';
 
 interface ContactCardProps {
   contact: DailyContact;
@@ -186,7 +186,7 @@ export const ContactCard = ({
         </div>
 
         <div className="flex items-center gap-2">
-          <LinkedInDialog linkedinUrl={contact.linkedinUrl} contactName={contact.name} />
+          <LinkedInButton linkedinUrl={contact.linkedinUrl} />
           <Badge variant="secondary" className="text-xs">
             {CADENCE_LABELS[contact.cadence]}
           </Badge>
