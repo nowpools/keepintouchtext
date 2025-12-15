@@ -1,7 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
-import { AppSettings, SortOrderType } from '@/types/contact';
+import { AppSettings, SortOrderType, SocialPlatform, SocialPlatformSettings } from '@/types/contact';
 
 const STORAGE_KEY = 'kitSettings';
+
+const DEFAULT_SOCIAL_PLATFORMS: SocialPlatformSettings = {
+  linkedin: false,
+  x: false,
+  youtube: false,
+  facebook: false,
+  instagram: false,
+  tiktok: false,
+  github: false,
+  threads: false,
+  snapchat: false,
+  pinterest: false,
+  reddit: false,
+  discord: false,
+  twitch: false,
+  whatsapp: false,
+  telegram: false,
+};
 
 const DEFAULT_SETTINGS: AppSettings = {
   maxDailyContacts: 5,
@@ -16,6 +34,7 @@ const DEFAULT_SETTINGS: AppSettings = {
   aiTone: 'friendly',
   aiLength: 'medium',
   sortOrder: 'alphabetical',
+  visibleSocialPlatforms: DEFAULT_SOCIAL_PLATFORMS,
 };
 
 export function useAppSettings() {
@@ -53,11 +72,26 @@ export function useAppSettings() {
     updateSettings({ sortOrder: value });
   }, [updateSettings]);
 
+  const toggleSocialPlatform = useCallback((platform: SocialPlatform) => {
+    setSettings(prev => {
+      const newSettings = {
+        ...prev,
+        visibleSocialPlatforms: {
+          ...prev.visibleSocialPlatforms,
+          [platform]: !prev.visibleSocialPlatforms[platform],
+        },
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newSettings));
+      return newSettings;
+    });
+  }, []);
+
   return {
     settings,
     isLoaded,
     updateSettings,
     updateMaxDailyContacts,
     updateSortOrder,
+    toggleSocialPlatform,
   };
 }

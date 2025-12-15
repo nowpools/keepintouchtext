@@ -36,12 +36,48 @@ export interface CadenceSettings {
 
 export type SortOrderType = 'alphabetical' | 'random';
 
+export type SocialPlatform = 
+  | 'linkedin' 
+  | 'x' 
+  | 'youtube' 
+  | 'facebook' 
+  | 'instagram' 
+  | 'tiktok' 
+  | 'github' 
+  | 'threads' 
+  | 'snapchat' 
+  | 'pinterest' 
+  | 'reddit' 
+  | 'discord' 
+  | 'twitch' 
+  | 'whatsapp' 
+  | 'telegram';
+
+export interface SocialPlatformSettings {
+  linkedin: boolean;
+  x: boolean;
+  youtube: boolean;
+  facebook: boolean;
+  instagram: boolean;
+  tiktok: boolean;
+  github: boolean;
+  threads: boolean;
+  snapchat: boolean;
+  pinterest: boolean;
+  reddit: boolean;
+  discord: boolean;
+  twitch: boolean;
+  whatsapp: boolean;
+  telegram: boolean;
+}
+
 export interface AppSettings {
   maxDailyContacts: number;
   cadenceSettings: CadenceSettings;
   aiTone: 'casual' | 'professional' | 'friendly';
   aiLength: 'short' | 'medium' | 'long';
   sortOrder: SortOrderType;
+  visibleSocialPlatforms: SocialPlatformSettings;
 }
 
 export const DEFAULT_CADENCE_DAYS: CadenceSettings = {
