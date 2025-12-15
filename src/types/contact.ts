@@ -18,11 +18,18 @@ export interface Contact {
   aiDraft?: string;
   followUpOverride?: Date | null;
   isHidden: boolean;
+  // Birthday fields
+  birthdayMonth?: number | null;
+  birthdayDay?: number | null;
+  birthdayYear?: number | null;
 }
+
+export type ContactSurfaceReason = 'cadence' | 'birthday' | 'follow_up';
 
 export interface DailyContact extends Contact {
   isCompleted: boolean;
   isSnoozed: boolean;
+  surfaceReason: ContactSurfaceReason;
 }
 
 export interface CadenceSettings {
