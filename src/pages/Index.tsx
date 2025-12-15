@@ -4,11 +4,12 @@ import { Layout } from '@/components/Layout';
 import { ContactCard } from '@/components/ContactCard';
 import { ProgressBar } from '@/components/ProgressBar';
 import { EmptyState } from '@/components/EmptyState';
+import { ContactDetailDialog } from '@/components/ContactDetailDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
 import { useAppSettings } from '@/hooks/useAppSettings';
-import { DailyContact } from '@/types/contact';
+import { DailyContact, Contact } from '@/types/contact';
 import { format, differenceInDays } from 'date-fns';
 import { Sparkles, RefreshCw, Cloud } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -22,12 +23,13 @@ const seededRandom = (seed: number) => {
 const Index = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
-  const { contacts, isLoading, isSyncing, syncGoogleContacts, markAsContacted } = useContacts();
+  const { contacts, isLoading, isSyncing, syncGoogleContacts, markAsContacted, updateContact } = useContacts();
   const { categorySettings } = useCategorySettings();
   const { settings, isLoaded: settingsLoaded } = useAppSettings();
   
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set());
+  const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -105,8 +107,29 @@ const Index = () => {
   };
 
   const handleUpdateDraft = (id: string, draft: string) => {
-    // Draft updates are local only for now
     console.log('Draft updated for', id, draft);
+  };
+
+  const handleNameClick = (contact: DailyContact) => {
+    // Convert DailyContact to Contact for the dialog
+    const fullContact: Contact = {
+      id: contact.id,
+      name: contact.name,
+      phone: contact.phone,
+      email: contact.email,
+      photo: contact.photo,
+      labels: contact.labels,
+      notes: contact.notes,
+      linkedinUrl: contact.linkedinUrl,
+      conversationContext: contact.conversationContext,
+      cadence: contact.cadence,
+      lastContacted: contact.lastContacted,
+      nextDue: contact.nextDue,
+      aiDraft: contact.aiDraft,
+      followUpOverride: contact.followUpOverride,
+      isHidden: contact.isHidden,
+    };
+    setSelectedContact(fullContact);
   };
 
   const completedCount = todaysContacts.filter(c => c.isCompleted).length;
@@ -188,6 +211,7 @@ const Index = () => {
                 onComplete={handleComplete}
                 onSnooze={handleSnooze}
                 onUpdateDraft={handleUpdateDraft}
+                onNameClick={handleNameClick}
               />
             ))}
           </div>
@@ -209,6 +233,15 @@ const Index = () => {
             </Button>
           </div>
         )}
+
+        {/* Contact Detail Dialog */}
+        <ContactDetailDialog
+          contact={selectedContact}
+          open={!!selectedContact}
+          onOpenChange={(open) => !open && setSelectedContact(null)}
+          categorySettings={categorySettings}
+          onUpdateContact={updateContact}
+        />
       </div>
     </Layout>
   );
