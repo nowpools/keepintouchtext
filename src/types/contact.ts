@@ -9,6 +9,8 @@ export interface Contact {
   labels: string[];
   notes: string;
   linkedinUrl?: string;
+  xUrl?: string;
+  youtubeUrl?: string;
   conversationContext?: string;
   cadence: CadenceType;
   lastContacted: Date | null;

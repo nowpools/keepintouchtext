@@ -35,6 +35,8 @@ export type Database = {
           photo: string | null
           updated_at: string
           user_id: string
+          x_url: string | null
+          youtube_url: string | null
         }
         Insert: {
           ai_draft?: string | null
@@ -56,6 +58,8 @@ export type Database = {
           photo?: string | null
           updated_at?: string
           user_id: string
+          x_url?: string | null
+          youtube_url?: string | null
         }
         Update: {
           ai_draft?: string | null
@@ -77,6 +81,8 @@ export type Database = {
           photo?: string | null
           updated_at?: string
           user_id?: string
+          x_url?: string | null
+          youtube_url?: string | null
         }
         Relationships: []
       }

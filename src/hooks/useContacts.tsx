@@ -15,6 +15,8 @@ interface DbContact {
   labels: string[];
   notes: string;
   linkedin_url: string | null;
+  x_url: string | null;
+  youtube_url: string | null;
   conversation_context: string | null;
   cadence: string;
   last_contacted: string | null;
@@ -57,6 +59,8 @@ export function useContacts() {
         labels: c.labels || [],
         notes: c.notes || '',
         linkedinUrl: c.linkedin_url || undefined,
+        xUrl: c.x_url || undefined,
+        youtubeUrl: c.youtube_url || undefined,
         conversationContext: c.conversation_context || undefined,
         cadence: (c.cadence || 'monthly') as CadenceType,
         lastContacted: c.last_contacted ? new Date(c.last_contacted) : null,
@@ -130,6 +134,8 @@ export function useContacts() {
       if (updates.cadence !== undefined) dbUpdates.cadence = updates.cadence;
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
       if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl;
+      if (updates.xUrl !== undefined) dbUpdates.x_url = updates.xUrl;
+      if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl;
       if (updates.conversationContext !== undefined) dbUpdates.conversation_context = updates.conversationContext;
       if (updates.labels !== undefined) dbUpdates.labels = updates.labels;
       if (updates.lastContacted !== undefined) {
