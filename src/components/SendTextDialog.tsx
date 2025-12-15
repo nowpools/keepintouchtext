@@ -15,13 +15,10 @@ import {
   Sparkles,
   RefreshCw,
   Phone,
-  Clock,
-  Twitter,
-  Youtube
+  Clock
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { useAIMessage } from '@/hooks/useAIMessage';
-import { cn } from '@/lib/utils';
 
 interface SendTextDialogProps {
   contact: Contact | null;
@@ -41,48 +38,35 @@ export const SendTextDialog = ({
   onSnooze,
 }: SendTextDialogProps) => {
   const [draft, setDraft] = useState('');
-  const [useXContext, setUseXContext] = useState(true);
-  const [useYoutubeContext, setUseYoutubeContext] = useState(true);
   const { generateMessage, isGenerating } = useAIMessage();
 
   // Generate message when dialog opens
   useEffect(() => {
     if (open && contact) {
-      // Reset toggles when opening
-      setUseXContext(true);
-      setUseYoutubeContext(true);
-      handleGenerateMessage(true, true);
+      handleGenerateMessage();
     } else if (!open) {
       setDraft('');
     }
   }, [open, contact?.id]);
 
-  const handleGenerateMessage = async (includeX = useXContext, includeYoutube = useYoutubeContext) => {
+  const handleGenerateMessage = async () => {
     if (!contact) return;
     
+    // Note: Social media scraping is not available via Firecrawl (403 blocked)
+    // AI uses notes and conversation context only
     const message = await generateMessage(
       contact.name,
       contact.notes,
       contact.lastContacted,
-      contact.linkedinUrl,
+      undefined, // linkedinUrl - not scrapable
       contact.conversationContext,
-      includeX ? contact.xUrl : undefined,
-      includeYoutube ? contact.youtubeUrl : undefined
+      undefined, // xUrl - not scrapable
+      undefined  // youtubeUrl - not scrapable
     );
     
     if (message) {
       setDraft(message);
     }
-  };
-
-  const toggleXContext = () => {
-    const newValue = !useXContext;
-    setUseXContext(newValue);
-  };
-
-  const toggleYoutubeContext = () => {
-    const newValue = !useYoutubeContext;
-    setUseYoutubeContext(newValue);
   };
 
   const handleOpeniMessage = () => {
@@ -155,42 +139,11 @@ export const SendTextDialog = ({
               <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                 <Sparkles className="w-4 h-4 text-primary" />
                 <span>Suggested message</span>
-                {/* Scrapable social media toggles */}
-                {contact.xUrl && (
-                  <button
-                    type="button"
-                    onClick={toggleXContext}
-                    title={useXContext ? 'X context enabled - click to disable' : 'X context disabled - click to enable'}
-                    className={cn(
-                      "p-1 rounded transition-all",
-                      useXContext 
-                        ? "bg-foreground/10 text-foreground" 
-                        : "bg-muted text-muted-foreground opacity-50"
-                    )}
-                  >
-                    <Twitter className="w-3.5 h-3.5" />
-                  </button>
-                )}
-                {contact.youtubeUrl && (
-                  <button
-                    type="button"
-                    onClick={toggleYoutubeContext}
-                    title={useYoutubeContext ? 'YouTube context enabled - click to disable' : 'YouTube context disabled - click to enable'}
-                    className={cn(
-                      "p-1 rounded transition-all",
-                      useYoutubeContext 
-                        ? "bg-[#FF0000]/10 text-[#FF0000]" 
-                        : "bg-muted text-muted-foreground opacity-50"
-                    )}
-                  >
-                    <Youtube className="w-3.5 h-3.5" />
-                  </button>
-                )}
               </div>
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => handleGenerateMessage()}
+                onClick={handleGenerateMessage}
                 disabled={isGenerating}
                 className="h-7 text-xs"
               >
