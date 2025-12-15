@@ -97,10 +97,13 @@ export const EditablePhone = ({ phone, onSave, className }: EditablePhoneProps) 
   }
 
   return (
-    <div 
+    <Button
+      type="button"
+      variant="ghost"
+      size="sm"
       className={cn(
-        "flex items-center gap-2 text-sm text-muted-foreground cursor-pointer hover:text-foreground transition-colors group",
-        className
+        "h-7 px-2 -ml-2 gap-2 text-sm text-muted-foreground hover:text-foreground",
+        className,
       )}
       onClick={(e) => {
         e.stopPropagation();
@@ -108,12 +111,7 @@ export const EditablePhone = ({ phone, onSave, className }: EditablePhoneProps) 
       }}
     >
       <Phone className="w-3.5 h-3.5" />
-      <span className={cn(
-        "group-hover:underline",
-        !phone && "italic"
-      )}>
-        {phone || 'No Phone'}
-      </span>
-    </div>
+      <span className={cn(!phone && "italic")}>{phone || 'No phone'}</span>
+    </Button>
   );
 };
