@@ -33,13 +33,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Linkedin, Twitter, Youtube, Tag, X, MessageSquareText, CalendarClock, EyeOff, Eye, UserPlus, ExternalLink } from 'lucide-react';
-import { SocialLinkButton } from '@/components/SocialLinkButton';
+import { Search, Users, Phone, Calendar, StickyNote, RefreshCw, Cloud, MessageSquare, Tag, X, MessageSquareText, CalendarClock, EyeOff, Eye, UserPlus, ExternalLink } from 'lucide-react';
+import { SocialUrlFields } from '@/components/SocialUrlFields';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format } from 'date-fns';
 import { formatDistanceToNow } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
+import { useAppSettings } from '@/hooks/useAppSettings';
 
 type SortOption = 'name' | 'lastContacted' | 'category';
 
@@ -50,6 +51,7 @@ const Contacts = () => {
   const { features, isTrialActive } = useSubscription();
   const { contacts, isLoading, isSyncing, syncGoogleContacts, updateContact, markAsContacted, refetch } = useContacts();
   const { categorySettings, isLoading: categoriesLoading } = useCategorySettings();
+  const { settings } = useAppSettings();
   
   const hasBirthdayFeature = features.birthdayField || isTrialActive;
   
@@ -59,9 +61,6 @@ const Contacts = () => {
   const [sortBy, setSortBy] = useState<SortOption>('name');
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
   const [editedNotes, setEditedNotes] = useState('');
-  const [editedLinkedinUrl, setEditedLinkedinUrl] = useState('');
-  const [editedXUrl, setEditedXUrl] = useState('');
-  const [editedYoutubeUrl, setEditedYoutubeUrl] = useState('');
   const [sendTextContact, setSendTextContact] = useState<Contact | null>(null);
   
   // Bulk selection state
@@ -82,13 +81,10 @@ const Contacts = () => {
     }
   }, [user, authLoading, navigate]);
 
-  // Update editedNotes and editedLinkedinUrl when selectedContact changes
+  // Update editedNotes when selectedContact changes
   useEffect(() => {
     if (selectedContact) {
       setEditedNotes(selectedContact.notes || '');
-      setEditedLinkedinUrl(selectedContact.linkedinUrl || '');
-      setEditedXUrl(selectedContact.xUrl || '');
-      setEditedYoutubeUrl(selectedContact.youtubeUrl || '');
       setShowCadenceOverride(false);
     }
   }, [selectedContact?.id]);
@@ -166,25 +162,10 @@ const Contacts = () => {
     }
   };
 
-  const handleLinkedinBlur = async () => {
-    if (selectedContact && editedLinkedinUrl !== (selectedContact.linkedinUrl || '')) {
-      await updateContact(selectedContact.id, { linkedinUrl: editedLinkedinUrl });
-      setSelectedContact(prev => prev ? { ...prev, linkedinUrl: editedLinkedinUrl } : null);
-    }
-  };
-
-  const handleXBlur = async () => {
-    if (selectedContact && editedXUrl !== (selectedContact.xUrl || '')) {
-      await updateContact(selectedContact.id, { xUrl: editedXUrl });
-      setSelectedContact(prev => prev ? { ...prev, xUrl: editedXUrl } : null);
-    }
-  };
-
-  const handleYoutubeBlur = async () => {
-    if (selectedContact && editedYoutubeUrl !== (selectedContact.youtubeUrl || '')) {
-      await updateContact(selectedContact.id, { youtubeUrl: editedYoutubeUrl });
-      setSelectedContact(prev => prev ? { ...prev, youtubeUrl: editedYoutubeUrl } : null);
-    }
+  const handleSocialUrlUpdate = async (urlKey: keyof Contact, value: string) => {
+    if (!selectedContact) return;
+    await updateContact(selectedContact.id, { [urlKey]: value || undefined });
+    setSelectedContact(prev => prev ? { ...prev, [urlKey]: value || undefined } : null);
   };
 
   const handleSendTextComplete = async (contactId: string) => {
@@ -658,63 +639,12 @@ const Contacts = () => {
                     </p>
                   </div>
 
-                  {/* LinkedIn URL */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <Linkedin className="w-4 h-4" />
-                        <span>LinkedIn</span>
-                      </div>
-                      <SocialLinkButton url={selectedContact.linkedinUrl} platform="linkedin" />
-                    </div>
-                    <Input
-                      value={editedLinkedinUrl}
-                      onChange={(e) => setEditedLinkedinUrl(e.target.value)}
-                      onBlur={handleLinkedinBlur}
-                      placeholder="https://linkedin.com/in/username"
-                      type="url"
-                    />
-                  </div>
-
-                  {/* X/Twitter URL */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <Twitter className="w-4 h-4" />
-                        <span>X (Twitter)</span>
-                      </div>
-                      <SocialLinkButton url={selectedContact.xUrl} platform="x" />
-                    </div>
-                    <Input
-                      value={editedXUrl}
-                      onChange={(e) => setEditedXUrl(e.target.value)}
-                      onBlur={handleXBlur}
-                      placeholder="https://x.com/username"
-                      type="url"
-                    />
-                  </div>
-
-                  {/* YouTube URL */}
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2 text-sm font-medium">
-                        <Youtube className="w-4 h-4" />
-                        <span>YouTube</span>
-                      </div>
-                      <SocialLinkButton url={selectedContact.youtubeUrl} platform="youtube" />
-                    </div>
-                    <Input
-                      value={editedYoutubeUrl}
-                      onChange={(e) => setEditedYoutubeUrl(e.target.value)}
-                      onBlur={handleYoutubeBlur}
-                      placeholder="https://youtube.com/@channel"
-                      type="url"
-                    />
-                  </div>
-
-                  <p className="text-xs text-muted-foreground">
-                    Click the icons to view their profiles and gather context for personalized messages
-                  </p>
+                  {/* Social Media URLs */}
+                  <SocialUrlFields
+                    contact={selectedContact}
+                    visiblePlatforms={settings.visibleSocialPlatforms}
+                    onUpdate={handleSocialUrlUpdate}
+                  />
 
                   {/* Conversation Context Button */}
                   <Button

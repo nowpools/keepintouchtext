@@ -11,6 +11,18 @@ export interface Contact {
   linkedinUrl?: string;
   xUrl?: string;
   youtubeUrl?: string;
+  instagramUrl?: string;
+  tiktokUrl?: string;
+  facebookUrl?: string;
+  githubUrl?: string;
+  threadsUrl?: string;
+  snapchatUrl?: string;
+  pinterestUrl?: string;
+  redditUrl?: string;
+  discordUrl?: string;
+  twitchUrl?: string;
+  whatsappUrl?: string;
+  telegramUrl?: string;
   conversationContext?: string;
   cadence: CadenceType;
   lastContacted: Date | null;

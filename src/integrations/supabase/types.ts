@@ -70,10 +70,14 @@ export type Database = {
           cadence: string | null
           conversation_context: string | null
           created_at: string
+          discord_url: string | null
           email: string | null
+          facebook_url: string | null
           follow_up_override: string | null
+          github_url: string | null
           google_id: string | null
           id: string
+          instagram_url: string | null
           is_hidden: boolean
           labels: string[] | null
           last_contacted: string | null
@@ -83,8 +87,16 @@ export type Database = {
           notes: string | null
           phone: string | null
           photo: string | null
+          pinterest_url: string | null
+          reddit_url: string | null
+          snapchat_url: string | null
+          telegram_url: string | null
+          threads_url: string | null
+          tiktok_url: string | null
+          twitch_url: string | null
           updated_at: string
           user_id: string
+          whatsapp_url: string | null
           x_url: string | null
           youtube_url: string | null
         }
@@ -96,10 +108,14 @@ export type Database = {
           cadence?: string | null
           conversation_context?: string | null
           created_at?: string
+          discord_url?: string | null
           email?: string | null
+          facebook_url?: string | null
           follow_up_override?: string | null
+          github_url?: string | null
           google_id?: string | null
           id?: string
+          instagram_url?: string | null
           is_hidden?: boolean
           labels?: string[] | null
           last_contacted?: string | null
@@ -109,8 +125,16 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           photo?: string | null
+          pinterest_url?: string | null
+          reddit_url?: string | null
+          snapchat_url?: string | null
+          telegram_url?: string | null
+          threads_url?: string | null
+          tiktok_url?: string | null
+          twitch_url?: string | null
           updated_at?: string
           user_id: string
+          whatsapp_url?: string | null
           x_url?: string | null
           youtube_url?: string | null
         }
@@ -122,10 +146,14 @@ export type Database = {
           cadence?: string | null
           conversation_context?: string | null
           created_at?: string
+          discord_url?: string | null
           email?: string | null
+          facebook_url?: string | null
           follow_up_override?: string | null
+          github_url?: string | null
           google_id?: string | null
           id?: string
+          instagram_url?: string | null
           is_hidden?: boolean
           labels?: string[] | null
           last_contacted?: string | null
@@ -135,8 +163,16 @@ export type Database = {
           notes?: string | null
           phone?: string | null
           photo?: string | null
+          pinterest_url?: string | null
+          reddit_url?: string | null
+          snapchat_url?: string | null
+          telegram_url?: string | null
+          threads_url?: string | null
+          tiktok_url?: string | null
+          twitch_url?: string | null
           updated_at?: string
           user_id?: string
+          whatsapp_url?: string | null
           x_url?: string | null
           youtube_url?: string | null
         }
