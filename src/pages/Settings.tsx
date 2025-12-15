@@ -8,11 +8,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
-import { RefreshCw, MessageSquare, Calendar, Users, Check, ExternalLink, Plus, Trash2, Tag, Loader2, Calculator, Shuffle, SortAsc, Share2, Linkedin, Twitter, Youtube, Facebook, Instagram, Github, MessageCircle, Send, Camera, Hash } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { RefreshCw, MessageSquare, Calendar, Users, Check, ExternalLink, Plus, Trash2, Tag, Loader2, Calculator, Shuffle, SortAsc, Share2, Linkedin, Twitter, Youtube, Facebook, Instagram, Github, MessageCircle, Send, Camera, Hash, Download, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useContacts } from '@/hooks/useContacts';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useContactHistory } from '@/hooks/useContactHistory';
 import { SortOrderType, SocialPlatform } from '@/types/contact';
 
 const SOCIAL_PLATFORMS: { key: SocialPlatform; name: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
@@ -38,8 +41,11 @@ const Settings = () => {
   const { categorySettings, isLoading: isLoadingCategories, updateCategorySetting, addCategorySetting, deleteCategorySetting } = useCategorySettings();
   const { settings, updateSettings, updateMaxDailyContacts, updateSortOrder, toggleSocialPlatform } = useAppSettings();
   const { contacts } = useContacts();
+  const { features, tier, isTrialActive, daysLeftInTrial } = useSubscription();
+  const { exportContactHistory } = useContactHistory();
   
   const [isSyncing, setIsSyncing] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: '', description: '', cadenceDays: 30 });
   const [dailyContactsInput, setDailyContactsInput] = useState<string>(settings.maxDailyContacts.toString());
@@ -83,11 +89,46 @@ const Settings = () => {
   };
   const handleDeleteCategory = async (id: string, name: string) => { const success = await deleteCategorySetting(id); if (success) toast({ title: 'Category deleted', description: `"${name}" has been removed.` }); };
   const handleSave = () => { if (!isDailyContactsValid()) { toast({ title: 'Invalid value', description: 'Daily contacts must be between 1 and 50', variant: 'destructive' }); return; } toast({ title: "Settings saved", description: "Your preferences have been updated." }); };
+  
+  const handleExport = async () => {
+    if (!features.exportHistory && !isTrialActive) {
+      toast({ title: 'Business feature', description: 'Upgrade to Business to export contact history', variant: 'destructive' });
+      return;
+    }
+    setIsExporting(true);
+    await exportContactHistory();
+    setIsExporting(false);
+  };
+
+  const canExport = features.exportHistory || isTrialActive;
 
   return (
     <Layout>
       <div className="space-y-6">
-        <div className="space-y-1 animate-fade-in"><h1 className="text-3xl font-bold">Settings</h1><p className="text-muted-foreground">Customize how Keep In Touch works for you</p></div>
+        <div className="flex items-center justify-between animate-fade-in">
+          <div className="space-y-1"><h1 className="text-3xl font-bold">Settings</h1><p className="text-muted-foreground">Customize how Keep In Touch works for you</p></div>
+          {isTrialActive && daysLeftInTrial > 0 && (
+            <Badge variant="secondary" className="gap-1">Trial: {daysLeftInTrial} days left</Badge>
+          )}
+        </div>
+
+        {/* Export History - Business only */}
+        <Card className="p-6 animate-fade-in">
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Download className="w-5 h-5 text-primary" /></div>
+            <div className="flex-1 space-y-4">
+              <div className="flex items-center gap-2">
+                <h3 className="font-semibold">Export Contact History</h3>
+                {!canExport && <Badge variant="outline" className="gap-1"><Lock className="w-3 h-3" />Business</Badge>}
+              </div>
+              <p className="text-sm text-muted-foreground">Download a CSV of all your contact interactions</p>
+              <Button variant="outline" onClick={handleExport} disabled={isExporting || !canExport} className="gap-2">
+                {isExporting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                {isExporting ? 'Exporting...' : 'Export to CSV'}
+              </Button>
+            </div>
+          </div>
+        </Card>
 
         <Card className="p-6 animate-fade-in">
           <div className="flex items-start gap-4">

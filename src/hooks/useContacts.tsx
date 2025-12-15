@@ -24,6 +24,9 @@ interface DbContact {
   ai_draft: string | null;
   follow_up_override: string | null;
   is_hidden: boolean;
+  birthday_month: number | null;
+  birthday_day: number | null;
+  birthday_year: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -68,6 +71,9 @@ export function useContacts() {
         aiDraft: c.ai_draft || undefined,
         followUpOverride: c.follow_up_override ? new Date(c.follow_up_override) : null,
         isHidden: c.is_hidden || false,
+        birthdayMonth: c.birthday_month,
+        birthdayDay: c.birthday_day,
+        birthdayYear: c.birthday_year,
       }));
 
       setContacts(mappedContacts);
@@ -145,6 +151,9 @@ export function useContacts() {
         dbUpdates.follow_up_override = updates.followUpOverride?.toISOString() || null;
       }
       if (updates.isHidden !== undefined) dbUpdates.is_hidden = updates.isHidden;
+      if (updates.birthdayMonth !== undefined) dbUpdates.birthday_month = updates.birthdayMonth;
+      if (updates.birthdayDay !== undefined) dbUpdates.birthday_day = updates.birthdayDay;
+      if (updates.birthdayYear !== undefined) dbUpdates.birthday_year = updates.birthdayYear;
 
       const { error } = await supabase
         .from('contacts')

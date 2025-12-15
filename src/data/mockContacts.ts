@@ -136,5 +136,6 @@ export const getTodaysContacts = (contacts: Contact[], maxDaily: number = 5): Da
     aiDraft: generateAIDraft(contact),
     isCompleted: false,
     isSnoozed: false,
+    surfaceReason: 'cadence' as const,
   }));
 };

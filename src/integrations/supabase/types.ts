@@ -14,9 +14,59 @@ export type Database = {
   }
   public: {
     Tables: {
+      contact_history: {
+        Row: {
+          cadence: string | null
+          contact_id: string
+          contact_name: string
+          contacted_at: string
+          created_at: string
+          id: string
+          label: string | null
+          notes: string | null
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          cadence?: string | null
+          contact_id: string
+          contact_name: string
+          contacted_at?: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          cadence?: string | null
+          contact_id?: string
+          contact_name?: string
+          contacted_at?: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "contact_history_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       contacts: {
         Row: {
           ai_draft: string | null
+          birthday_day: number | null
+          birthday_month: number | null
+          birthday_year: number | null
           cadence: string | null
           conversation_context: string | null
           created_at: string
@@ -40,6 +90,9 @@ export type Database = {
         }
         Insert: {
           ai_draft?: string | null
+          birthday_day?: number | null
+          birthday_month?: number | null
+          birthday_year?: number | null
           cadence?: string | null
           conversation_context?: string | null
           created_at?: string
@@ -63,6 +116,9 @@ export type Database = {
         }
         Update: {
           ai_draft?: string | null
+          birthday_day?: number | null
+          birthday_month?: number | null
+          birthday_year?: number | null
           cadence?: string | null
           conversation_context?: string | null
           created_at?: string
@@ -165,6 +221,36 @@ export type Database = {
           tier?: Database["public"]["Enums"]["subscription_tier"]
           trial_ends_at?: string | null
           trial_started_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_streaks: {
+        Row: {
+          created_at: string
+          current_streak: number
+          id: string
+          last_completion_date: string | null
+          longest_streak: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_completion_date?: string | null
+          longest_streak?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          current_streak?: number
+          id?: string
+          last_completion_date?: string | null
+          longest_streak?: number
           updated_at?: string
           user_id?: string
         }

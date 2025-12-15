@@ -5,19 +5,31 @@ import { ContactCard } from '@/components/ContactCard';
 import { ProgressBar } from '@/components/ProgressBar';
 import { EmptyState } from '@/components/EmptyState';
 import { ContactDetailDialog } from '@/components/ContactDetailDialog';
+import { StreakIndicator } from '@/components/StreakIndicator';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
 import { useAppSettings } from '@/hooks/useAppSettings';
-import { DailyContact, Contact } from '@/types/contact';
-import { format, differenceInDays } from 'date-fns';
-import { Sparkles, RefreshCw, Cloud } from 'lucide-react';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useStreak } from '@/hooks/useStreak';
+import { useContactHistory } from '@/hooks/useContactHistory';
+import { DailyContact, Contact, ContactSurfaceReason } from '@/types/contact';
+import { format, differenceInDays, isSameDay } from 'date-fns';
+import { Sparkles, RefreshCw, Cloud, Cake, Calendar, CalendarClock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 
 // Seeded random for consistent daily randomization
 const seededRandom = (seed: number) => {
   const x = Math.sin(seed) * 10000;
   return x - Math.floor(x);
+};
+
+// Check if today is someone's birthday
+const isBirthdayToday = (contact: Contact): boolean => {
+  if (!contact.birthdayMonth || !contact.birthdayDay) return false;
+  const today = new Date();
+  return contact.birthdayMonth === (today.getMonth() + 1) && contact.birthdayDay === today.getDate();
 };
 
 const Index = () => {
@@ -26,6 +38,9 @@ const Index = () => {
   const { contacts, isLoading, isSyncing, syncGoogleContacts, markAsContacted, updateContact } = useContacts();
   const { categorySettings } = useCategorySettings();
   const { settings, isLoaded: settingsLoaded } = useAppSettings();
+  const { features, isTrialActive } = useSubscription();
+  const { currentStreak, longestStreak, recordCompletion } = useStreak();
+  const { recordContactCompletion } = useContactHistory();
   
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set());
@@ -46,60 +61,125 @@ const Index = () => {
     return map;
   }, [categorySettings]);
 
-  // Calculate today's contacts based on category cadence and last contacted
+  // Check if streak/progress features are available
+  const hasStreakFeature = features.streakTracking || isTrialActive;
+  const hasBirthdayReminders = features.birthdayField || isTrialActive;
+
+  // Calculate today's contacts based on category cadence, birthdays, and follow-up overrides
   const todaysContacts: DailyContact[] = useMemo(() => {
     const today = new Date();
     const todaySeed = today.getFullYear() * 10000 + (today.getMonth() + 1) * 100 + today.getDate();
     
+    // Track which contacts we've added to avoid duplicates
+    const addedIds = new Set<string>();
+    const result: DailyContact[] = [];
+
+    // 1. First, add birthday contacts (Pro/Business only) - they always appear
+    if (hasBirthdayReminders) {
+      contacts
+        .filter(contact => !contact.isHidden && isBirthdayToday(contact))
+        .forEach(contact => {
+          if (!addedIds.has(contact.id)) {
+            addedIds.add(contact.id);
+            result.push({
+              ...contact,
+              isCompleted: completedIds.has(contact.id),
+              isSnoozed: snoozedIds.has(contact.id),
+              surfaceReason: 'birthday' as ContactSurfaceReason,
+            });
+          }
+        });
+    }
+
+    // 2. Add contacts with follow-up override set to today
+    contacts
+      .filter(contact => !contact.isHidden && contact.followUpOverride)
+      .forEach(contact => {
+        if (!addedIds.has(contact.id) && contact.followUpOverride) {
+          const overrideDate = new Date(contact.followUpOverride);
+          if (isSameDay(overrideDate, today)) {
+            addedIds.add(contact.id);
+            result.push({
+              ...contact,
+              isCompleted: completedIds.has(contact.id),
+              isSnoozed: snoozedIds.has(contact.id),
+              surfaceReason: 'follow_up' as ContactSurfaceReason,
+            });
+          }
+        }
+      });
+
+    // 3. Add cadence-based contacts up to the daily limit
     const dueContacts = contacts
-      .filter(contact => !contact.isHidden) // Exclude hidden contacts
-      .map(contact => {
+      .filter(contact => {
+        if (contact.isHidden) return false;
+        if (addedIds.has(contact.id)) return false;
+        
         const category = contact.labels[0];
-        // Use category cadence if available, otherwise fall back to 30 days
         const cadenceDays = category && categoryCadenceMap[category] 
           ? categoryCadenceMap[category] 
           : 30;
         
         const lastContacted = contact.lastContacted;
         
-        // Calculate if contact is due
-        let isDue = false;
-        if (!lastContacted) {
-          isDue = true; // Never contacted
-        } else {
-          const daysSinceContact = differenceInDays(today, lastContacted);
-          isDue = daysSinceContact >= cadenceDays;
-        }
-
-        return {
-          ...contact,
-          isDue,
-          isCompleted: completedIds.has(contact.id),
-          isSnoozed: snoozedIds.has(contact.id),
-        };
+        if (!lastContacted) return true;
+        
+        const daysSinceContact = differenceInDays(today, lastContacted);
+        return daysSinceContact >= cadenceDays;
       })
-      .filter(c => c.isDue && !c.isSnoozed);
+      .map(contact => ({
+        ...contact,
+        isCompleted: completedIds.has(contact.id),
+        isSnoozed: snoozedIds.has(contact.id),
+        surfaceReason: 'cadence' as ContactSurfaceReason,
+      }));
 
     // Sort based on user preference
-    let sortedContacts: typeof dueContacts;
+    let sortedDueContacts: typeof dueContacts;
     if (settings.sortOrder === 'random') {
-      // Use seeded random for consistent daily order
-      sortedContacts = [...dueContacts].sort((a, b) => {
+      sortedDueContacts = [...dueContacts].sort((a, b) => {
         const aRand = seededRandom(todaySeed + a.id.charCodeAt(0));
         const bRand = seededRandom(todaySeed + b.id.charCodeAt(0));
         return aRand - bRand;
       });
     } else {
-      // Alphabetical
-      sortedContacts = [...dueContacts].sort((a, b) => a.name.localeCompare(b.name));
+      sortedDueContacts = [...dueContacts].sort((a, b) => a.name.localeCompare(b.name));
     }
 
-    return sortedContacts.slice(0, settings.maxDailyContacts);
-  }, [contacts, completedIds, snoozedIds, categoryCadenceMap, settings.maxDailyContacts, settings.sortOrder]);
+    // Calculate remaining slots
+    const maxDaily = settings.maxDailyContacts;
+    const birthdayAndOverrideCount = result.length;
+    const remainingSlots = Math.max(0, maxDaily - birthdayAndOverrideCount);
+    
+    // Add cadence contacts up to remaining slots
+    sortedDueContacts
+      .filter(c => !c.isSnoozed)
+      .slice(0, remainingSlots)
+      .forEach(contact => result.push(contact));
+
+    return result;
+  }, [contacts, completedIds, snoozedIds, categoryCadenceMap, settings.maxDailyContacts, settings.sortOrder, hasBirthdayReminders]);
 
   const handleComplete = async (id: string) => {
     setCompletedIds(prev => new Set(prev).add(id));
     await markAsContacted(id);
+    
+    // Record in history
+    const contact = contacts.find(c => c.id === id);
+    const dailyContact = todaysContacts.find(c => c.id === id);
+    if (contact && dailyContact) {
+      await recordContactCompletion(contact, dailyContact.surfaceReason);
+    }
+    
+    // Update streak (Pro/Business only)
+    if (hasStreakFeature) {
+      await recordCompletion();
+    }
+    
+    // Clear follow-up override after completion
+    if (dailyContact?.surfaceReason === 'follow_up') {
+      await updateContact(id, { followUpOverride: null });
+    }
   };
 
   const handleSnooze = (id: string) => {
@@ -111,7 +191,6 @@ const Index = () => {
   };
 
   const handleNameClick = (contact: DailyContact) => {
-    // Convert DailyContact to Contact for the dialog
     const fullContact: Contact = {
       id: contact.id,
       name: contact.name,
@@ -130,8 +209,32 @@ const Index = () => {
       aiDraft: contact.aiDraft,
       followUpOverride: contact.followUpOverride,
       isHidden: contact.isHidden,
+      birthdayMonth: contact.birthdayMonth,
+      birthdayDay: contact.birthdayDay,
+      birthdayYear: contact.birthdayYear,
     };
     setSelectedContact(fullContact);
+  };
+
+  const getReasonBadge = (reason: ContactSurfaceReason) => {
+    switch (reason) {
+      case 'birthday':
+        return (
+          <Badge variant="secondary" className="gap-1 bg-accent/20 text-accent border-accent/30">
+            <Cake className="w-3 h-3" />
+            Birthday
+          </Badge>
+        );
+      case 'follow_up':
+        return (
+          <Badge variant="secondary" className="gap-1 bg-primary/20 text-primary border-primary/30">
+            <CalendarClock className="w-3 h-3" />
+            Follow-up
+          </Badge>
+        );
+      default:
+        return null;
+    }
   };
 
   const completedCount = todaysContacts.filter(c => c.isCompleted).length;
@@ -151,14 +254,24 @@ const Index = () => {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="space-y-1 animate-fade-in">
-          <p className="text-sm text-muted-foreground">
-            {format(new Date(), 'EEEE, MMMM d')}
-          </p>
-          <h1 className="text-3xl font-bold">Today's Connections</h1>
-          <p className="text-muted-foreground">
-            People who'd love to hear from you today
-          </p>
+        <div className="flex items-start justify-between animate-fade-in">
+          <div className="space-y-1">
+            <p className="text-sm text-muted-foreground">
+              {format(new Date(), 'EEEE, MMMM d')}
+            </p>
+            <h1 className="text-3xl font-bold">Today's Connections</h1>
+            <p className="text-muted-foreground">
+              People who'd love to hear from you today
+            </p>
+          </div>
+          
+          {/* Streak indicator (Pro/Business only) */}
+          {hasStreakFeature && (
+            <StreakIndicator 
+              currentStreak={currentStreak} 
+              longestStreak={longestStreak} 
+            />
+          )}
         </div>
 
         {/* Progress */}
@@ -206,15 +319,22 @@ const Index = () => {
         ) : (
           <div className="space-y-4">
             {todaysContacts.map((contact, index) => (
-              <ContactCard
-                key={contact.id}
-                contact={contact}
-                index={index}
-                onComplete={handleComplete}
-                onSnooze={handleSnooze}
-                onUpdateDraft={handleUpdateDraft}
-                onNameClick={handleNameClick}
-              />
+              <div key={contact.id} className="relative">
+                {/* Reason badge */}
+                {contact.surfaceReason !== 'cadence' && (
+                  <div className="absolute -top-2 left-4 z-10">
+                    {getReasonBadge(contact.surfaceReason)}
+                  </div>
+                )}
+                <ContactCard
+                  contact={contact}
+                  index={index}
+                  onComplete={handleComplete}
+                  onSnooze={handleSnooze}
+                  onUpdateDraft={handleUpdateDraft}
+                  onNameClick={handleNameClick}
+                />
+              </div>
             ))}
           </div>
         )}

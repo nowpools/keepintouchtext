@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/dialog';
 import { SocialLinkButton } from '@/components/SocialLinkButton';
 import { ConversationContextDialog } from '@/components/ConversationContextDialog';
+import { BirthdayField } from '@/components/BirthdayField';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -276,6 +277,26 @@ export const ContactDetailDialog = ({
                 </div>
               </div>
             )}
+
+            {/* Birthday */}
+            <BirthdayField
+              month={localContact.birthdayMonth}
+              day={localContact.birthdayDay}
+              year={localContact.birthdayYear}
+              onChange={async (birthday) => {
+                await onUpdateContact(localContact.id, {
+                  birthdayMonth: birthday.month,
+                  birthdayDay: birthday.day,
+                  birthdayYear: birthday.year,
+                });
+                setLocalContact(prev => prev ? {
+                  ...prev,
+                  birthdayMonth: birthday.month,
+                  birthdayDay: birthday.day,
+                  birthdayYear: birthday.year,
+                } : null);
+              }}
+            />
 
             {/* Notes */}
             <div className="space-y-2">
