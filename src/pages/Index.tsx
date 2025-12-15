@@ -25,11 +25,13 @@ const seededRandom = (seed: number) => {
   return x - Math.floor(x);
 };
 
-// Check if today is someone's birthday
+// Check if today is someone's birthday (using user's local timezone)
 const isBirthdayToday = (contact: Contact): boolean => {
   if (!contact.birthdayMonth || !contact.birthdayDay) return false;
-  const today = new Date();
-  return contact.birthdayMonth === (today.getMonth() + 1) && contact.birthdayDay === today.getDate();
+  const now = new Date();
+  const todayMonth = now.getMonth() + 1; // 1-12
+  const todayDay = now.getDate(); // 1-31
+  return contact.birthdayMonth === todayMonth && contact.birthdayDay === todayDay;
 };
 
 const Index = () => {

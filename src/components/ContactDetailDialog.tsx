@@ -74,6 +74,7 @@ export const ContactDetailDialog = ({
   
   const hasBirthdayFeature = features.birthdayField || isTrialActive;
 
+  // Sync local state with contact prop changes
   useEffect(() => {
     if (contact) {
       setEditedNotes(contact.notes || '');
@@ -83,7 +84,14 @@ export const ContactDetailDialog = ({
       setShowCadenceOverride(false);
       setLocalContact(contact);
     }
-  }, [contact?.id]);
+  }, [contact]);
+
+  // Re-sync when dialog opens to ensure latest data
+  useEffect(() => {
+    if (open && contact) {
+      setLocalContact(contact);
+    }
+  }, [open, contact]);
 
   const handleCadenceChange = async (newCadence: CadenceType) => {
     if (!localContact) return;
