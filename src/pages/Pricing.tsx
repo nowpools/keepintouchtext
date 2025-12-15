@@ -58,7 +58,7 @@ const tiers = [{
     text: 'Unlimited relationship labels',
     included: true
   }, {
-    text: 'Full cadence system (Daily → Annual)',
+    text: 'Fully customizable cadence system (Daily → Annual)',
     included: true
   }, {
     text: 'Smart Daily Target - Auto-balance contacts',
