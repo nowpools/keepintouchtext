@@ -686,7 +686,7 @@ const Contacts = () => {
                   </div>
 
                   <p className="text-xs text-muted-foreground">
-                    Social profiles help the AI reference recent posts and generate personalized messages
+                    Click the icons to view their profiles and gather context for personalized messages
                   </p>
 
                   {/* Conversation Context Button */}
