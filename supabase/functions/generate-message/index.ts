@@ -5,27 +5,49 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Extract vanity name from LinkedIn URL for context
-function extractLinkedInInfo(linkedinUrl: string): string | null {
+// Fetch LinkedIn profile content using Firecrawl
+async function fetchLinkedInContent(linkedinUrl: string): Promise<string | null> {
+  const apiKey = Deno.env.get("FIRECRAWL_API_KEY");
+  if (!apiKey) {
+    console.log("FIRECRAWL_API_KEY not configured, skipping LinkedIn scrape");
+    return null;
+  }
+
   try {
-    const url = new URL(linkedinUrl);
-    const pathParts = url.pathname.split('/').filter(Boolean);
+    console.log("Scraping LinkedIn URL:", linkedinUrl);
     
-    if (pathParts[0] === 'in' && pathParts[1]) {
-      // Convert vanity name to readable format: "john-doe-123abc" -> "john doe"
-      const vanityName = pathParts[1]
-        .replace(/-[a-f0-9]{6,}$/i, '') // Remove trailing ID
-        .replace(/-/g, ' ')
-        .trim();
-      return vanityName;
+    const response = await fetch("https://api.firecrawl.dev/v1/scrape", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        url: linkedinUrl,
+        formats: ["markdown"],
+        onlyMainContent: true,
+        waitFor: 3000, // Wait for dynamic content to load
+      }),
+    });
+
+    if (!response.ok) {
+      console.error("Firecrawl error:", response.status, await response.text());
+      return null;
     }
+
+    const data = await response.json();
+    const markdown = data.data?.markdown || data.markdown;
     
-    if (pathParts[0] === 'company' && pathParts[1]) {
-      return `works at or connected to ${pathParts[1].replace(/-/g, ' ')}`;
+    if (markdown) {
+      // Limit content to avoid token limits - extract most relevant parts
+      const truncated = markdown.substring(0, 2000);
+      console.log("LinkedIn content fetched successfully, length:", truncated.length);
+      return truncated;
     }
     
     return null;
-  } catch {
+  } catch (error) {
+    console.error("Error fetching LinkedIn content:", error);
     return null;
   }
 }
@@ -46,8 +68,11 @@ serve(async (req) => {
     // Build context from contact info
     let context = "";
     
-    // Extract LinkedIn info from URL if provided
-    const linkedinInfo = linkedinUrl ? extractLinkedInInfo(linkedinUrl) : null;
+    // Fetch LinkedIn content using Firecrawl if URL provided
+    let linkedinContent: string | null = null;
+    if (linkedinUrl) {
+      linkedinContent = await fetchLinkedInContent(linkedinUrl);
+    }
     
     // Build rich context
     const contextParts: string[] = [];
@@ -60,8 +85,8 @@ serve(async (req) => {
       contextParts.push(`Personal notes about ${contactName}: "${contactNotes}"`);
     }
     
-    if (linkedinInfo) {
-      contextParts.push(`They have a LinkedIn profile (${linkedinInfo})`);
+    if (linkedinContent) {
+      contextParts.push(`Their LinkedIn profile content:\n${linkedinContent}`);
     } else if (linkedinUrl) {
       contextParts.push(`They have a LinkedIn profile at ${linkedinUrl}`);
     }
