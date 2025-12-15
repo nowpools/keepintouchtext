@@ -15,6 +15,7 @@ export const LinkedInDialog = ({ linkedinUrl, contactName }: LinkedInDialogProps
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [content, setContent] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [title, setTitle] = useState<string>('');
   const { toast } = useToast();
 
@@ -23,6 +24,7 @@ export const LinkedInDialog = ({ linkedinUrl, contactName }: LinkedInDialogProps
     
     setIsLoading(true);
     setOpen(true);
+    setErrorMessage(null);
     
     try {
       const { data, error } = await supabase.functions.invoke('fetch-linkedin', {
@@ -34,17 +36,20 @@ export const LinkedInDialog = ({ linkedinUrl, contactName }: LinkedInDialogProps
       if (data?.success) {
         setContent(data.content);
         setTitle(data.title || contactName);
+        setErrorMessage(null);
       } else {
         throw new Error(data?.error || 'Failed to fetch LinkedIn data');
       }
     } catch (error) {
       console.error('Error fetching LinkedIn:', error);
+      const message = error instanceof Error ? error.message : 'Could not fetch profile';
       toast({
         title: "Failed to load LinkedIn",
-        description: error instanceof Error ? error.message : "Could not fetch profile",
+        description: message,
         variant: "destructive"
       });
       setContent(null);
+      setErrorMessage(message);
     } finally {
       setIsLoading(false);
     }
@@ -102,7 +107,7 @@ export const LinkedInDialog = ({ linkedinUrl, contactName }: LinkedInDialogProps
             </ScrollArea>
           ) : (
             <div className="py-8 text-center text-muted-foreground">
-              <p>Could not load LinkedIn profile content.</p>
+              <p>{errorMessage || 'Could not load LinkedIn profile content.'}</p>
               <Button
                 variant="outline"
                 size="sm"
