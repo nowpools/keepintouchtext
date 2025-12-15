@@ -25,6 +25,7 @@ interface ContactCardProps {
   onComplete: (id: string) => void;
   onSnooze: (id: string) => void;
   onUpdateDraft: (id: string, draft: string) => void;
+  onNameClick?: (contact: DailyContact) => void;
   index: number;
 }
 
@@ -33,6 +34,7 @@ export const ContactCard = ({
   onComplete, 
   onSnooze, 
   onUpdateDraft,
+  onNameClick,
   index 
 }: ContactCardProps) => {
   const [isExpanded, setIsExpanded] = useState(true);
@@ -178,7 +180,15 @@ export const ContactCard = ({
         </div>
         
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-lg truncate">{contact.name}</h3>
+          <h3 
+            className="font-semibold text-lg truncate cursor-pointer hover:text-primary transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onNameClick?.(contact);
+            }}
+          >
+            {contact.name}
+          </h3>
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             <Phone className="w-3.5 h-3.5" />
             <span>{contact.phone}</span>
