@@ -29,7 +29,8 @@ export function useAIMessage() {
     linkedinUrl?: string,
     conversationContext?: string,
     xUrl?: string,
-    youtubeUrl?: string
+    youtubeUrl?: string,
+    isBirthday?: boolean
   ): Promise<string | null> => {
     setIsGenerating(true);
     
@@ -47,6 +48,7 @@ export function useAIMessage() {
           lastContacted: lastContacted?.toISOString() || null,
           tone: settings.aiTone,
           length: settings.aiLength,
+          isBirthday: isBirthday || false,
         },
       });
 

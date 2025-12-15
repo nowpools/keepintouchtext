@@ -58,7 +58,7 @@ serve(async (req) => {
   }
 
   try {
-    const { contactName, contactNotes, linkedinUrl, xUrl, youtubeUrl, conversationContext, lastContacted, tone, length } = await req.json();
+    const { contactName, contactNotes, linkedinUrl, xUrl, youtubeUrl, conversationContext, lastContacted, tone, length, isBirthday } = await req.json();
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     
     if (!LOVABLE_API_KEY) {
@@ -143,7 +143,31 @@ serve(async (req) => {
     const toneInstruction = toneMap[tone] || toneMap.friendly;
     const lengthInstruction = lengthMap[length] || lengthMap.medium;
 
-    const systemPrompt = `You write text messages for someone reaching out to people they know. Your job is to write ONE text message that sounds completely natural and human.
+    // Use birthday-specific prompt if this is a birthday message
+    const systemPrompt = isBirthday 
+      ? `You write birthday text messages for someone reaching out to people they know. Your job is to write ONE birthday text message that sounds completely natural and human.
+${context}
+
+Style: ${toneInstruction}
+Length: ${lengthInstruction}
+
+Critical rules:
+- This is a BIRTHDAY message - wish them a happy birthday!
+- NEVER use their name in the message
+- Sound like a real person, not a bot or assistant
+- If there are notes about them, you can weave in something personal naturally
+- Don't be generic - make it feel personal and warm
+- Match how real people actually text - contractions, natural flow
+- Output ONLY the message text, nothing else
+
+Examples of good birthday messages:
+- "Happy birthday!! Hope you have an amazing day 🎂"
+- "happy bday! hope this year brings you everything you're hoping for"
+- "It's your day! Hope you're celebrating in style 🎉"
+- "Happy birthday! Wishing you the best year yet"
+- "wooo happy birthday!! let's celebrate soon"
+- "Happy bday! Hope it's a great one"`
+      : `You write text messages for someone reaching out to people they know. Your job is to write ONE text message that sounds completely natural and human.
 ${context}
 
 Style: ${toneInstruction}

@@ -104,7 +104,8 @@ export const ContactCard = ({
       contact.linkedinUrl,
       contact.conversationContext,
       contact.xUrl,
-      contact.youtubeUrl
+      contact.youtubeUrl,
+      contact.surfaceReason === 'birthday'
     );
     
     if (message) {
