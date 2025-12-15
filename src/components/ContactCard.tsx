@@ -13,13 +13,15 @@ import {
   Sparkles,
   ChevronDown,
   ChevronUp,
-  RefreshCw
+  RefreshCw,
+  Settings
 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { useAIMessage } from '@/hooks/useAIMessage';
-import { LinkedInButton } from '@/components/LinkedInButton';
 import { SocialLinkButton } from '@/components/SocialLinkButton';
+import { useAppSettings } from '@/hooks/useAppSettings';
+import { Link } from 'react-router-dom';
 
 interface ContactCardProps {
   contact: DailyContact;
@@ -42,6 +44,11 @@ export const ContactCard = ({
   const [draft, setDraft] = useState(contact.aiDraft || '');
   const [showConfirm, setShowConfirm] = useState(false);
   const { generateMessage, isGenerating } = useAIMessage();
+  const { settings } = useAppSettings();
+
+  const visiblePlatforms = settings.visibleSocialPlatforms;
+  const hasAnyPlatformEnabled = Object.values(visiblePlatforms).some(v => v);
+  const hasAnySocialUrl = contact.linkedinUrl || contact.xUrl || contact.youtubeUrl;
 
   // Auto-generate message on mount if no draft exists
   useEffect(() => {
@@ -199,9 +206,22 @@ export const ContactCard = ({
         </div>
 
         <div className="flex items-center gap-1">
-          <SocialLinkButton url={contact.linkedinUrl} platform="linkedin" />
-          <SocialLinkButton url={contact.xUrl} platform="x" />
-          <SocialLinkButton url={contact.youtubeUrl} platform="youtube" />
+          {hasAnyPlatformEnabled ? (
+            <>
+              <SocialLinkButton url={contact.linkedinUrl} platform="linkedin" isVisible={visiblePlatforms.linkedin} />
+              <SocialLinkButton url={contact.xUrl} platform="x" isVisible={visiblePlatforms.x} />
+              <SocialLinkButton url={contact.youtubeUrl} platform="youtube" isVisible={visiblePlatforms.youtube} />
+            </>
+          ) : hasAnySocialUrl ? (
+            <Link 
+              to="/settings" 
+              className="text-xs text-muted-foreground hover:text-primary flex items-center gap-1 mr-2"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <Settings className="w-3 h-3" />
+              <span>Enable social links in Settings</span>
+            </Link>
+          ) : null}
           <Badge variant="secondary" className="text-xs">
             {CADENCE_LABELS[contact.cadence]}
           </Badge>

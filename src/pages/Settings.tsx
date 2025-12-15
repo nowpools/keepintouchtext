@@ -7,17 +7,36 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import { RefreshCw, MessageSquare, Calendar, Users, Check, ExternalLink, Plus, Trash2, Tag, Loader2, Calculator, Shuffle, SortAsc } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { RefreshCw, MessageSquare, Calendar, Users, Check, ExternalLink, Plus, Trash2, Tag, Loader2, Calculator, Shuffle, SortAsc, Share2, Linkedin, Twitter, Youtube, Facebook, Instagram, Github, MessageCircle, Send, Camera, Hash } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useContacts } from '@/hooks/useContacts';
-import { SortOrderType } from '@/types/contact';
+import { SortOrderType, SocialPlatform } from '@/types/contact';
+
+const SOCIAL_PLATFORMS: { key: SocialPlatform; name: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
+  { key: 'linkedin', name: 'LinkedIn', icon: Linkedin, color: 'text-[#0A66C2]' },
+  { key: 'x', name: 'X (Twitter)', icon: Twitter, color: 'text-foreground' },
+  { key: 'youtube', name: 'YouTube', icon: Youtube, color: 'text-[#FF0000]' },
+  { key: 'facebook', name: 'Facebook', icon: Facebook, color: 'text-[#1877F2]' },
+  { key: 'instagram', name: 'Instagram', icon: Instagram, color: 'text-[#E4405F]' },
+  { key: 'tiktok', name: 'TikTok', icon: Camera, color: 'text-foreground' },
+  { key: 'github', name: 'GitHub', icon: Github, color: 'text-foreground' },
+  { key: 'threads', name: 'Threads', icon: Hash, color: 'text-foreground' },
+  { key: 'snapchat', name: 'Snapchat', icon: Camera, color: 'text-[#FFFC00]' },
+  { key: 'pinterest', name: 'Pinterest', icon: Camera, color: 'text-[#E60023]' },
+  { key: 'reddit', name: 'Reddit', icon: MessageCircle, color: 'text-[#FF4500]' },
+  { key: 'discord', name: 'Discord', icon: MessageCircle, color: 'text-[#5865F2]' },
+  { key: 'twitch', name: 'Twitch', icon: Camera, color: 'text-[#9146FF]' },
+  { key: 'whatsapp', name: 'WhatsApp', icon: MessageCircle, color: 'text-[#25D366]' },
+  { key: 'telegram', name: 'Telegram', icon: Send, color: 'text-[#0088CC]' },
+];
 
 const Settings = () => {
   const { toast } = useToast();
   const { categorySettings, isLoading: isLoadingCategories, updateCategorySetting, addCategorySetting, deleteCategorySetting } = useCategorySettings();
-  const { settings, updateSettings, updateMaxDailyContacts, updateSortOrder } = useAppSettings();
+  const { settings, updateSettings, updateMaxDailyContacts, updateSortOrder, toggleSocialPlatform } = useAppSettings();
   const { contacts } = useContacts();
   
   const [isSyncing, setIsSyncing] = useState(false);
@@ -127,6 +146,41 @@ const Settings = () => {
               {isLoadingCategories ? (<div className="flex items-center justify-center py-8"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>) : (
                 <div className="space-y-3">{categorySettings.map((category) => (<div key={category.id} className="flex items-center gap-4 p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"><div className="flex-1 min-w-0"><div className="flex items-center gap-2"><span className="font-medium text-sm">{category.label_name}</span>{category.is_default && (<span className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary">Default</span>)}</div>{category.description && (<p className="text-xs text-muted-foreground mt-0.5 truncate">{category.description}</p>)}</div><div className="flex items-center gap-2 shrink-0"><Input type="number" min={1} max={365} value={category.cadence_days} onChange={(e) => handleCadenceChange(category.id, parseInt(e.target.value) || 30)} className="w-20 text-center" /><span className="text-sm text-muted-foreground w-10">days</span>{!category.is_default ? (<Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive" onClick={() => handleDeleteCategory(category.id, category.label_name)}><Trash2 className="w-4 h-4" /></Button>) : <div className="w-8" />}</div></div>))}</div>
               )}
+            </div>
+          </div>
+        </Card>
+
+        <Card className="p-6 animate-fade-in" style={{ animationDelay: '250ms' }}>
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Share2 className="w-5 h-5 text-primary" /></div>
+            <div className="flex-1 space-y-4">
+              <div>
+                <h3 className="font-semibold">Social Media Platforms</h3>
+                <p className="text-sm text-muted-foreground">Choose which social media links to display on contact cards</p>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {SOCIAL_PLATFORMS.map((platform) => {
+                  const Icon = platform.icon;
+                  return (
+                    <div
+                      key={platform.key}
+                      className="flex items-center justify-between p-3 rounded-lg bg-muted/50 hover:bg-muted transition-colors"
+                    >
+                      <div className="flex items-center gap-3">
+                        <Icon className={`w-5 h-5 ${platform.color}`} />
+                        <span className="text-sm font-medium">{platform.name}</span>
+                      </div>
+                      <Switch
+                        checked={settings.visibleSocialPlatforms[platform.key]}
+                        onCheckedChange={() => toggleSocialPlatform(platform.key)}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Enabled platforms will show on all contact cards when the contact has a link for that platform.
+              </p>
             </div>
           </div>
         </Card>
