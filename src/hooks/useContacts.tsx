@@ -71,6 +71,7 @@ export function useContacts() {
         phone: c.phone || '',
         email: c.email || undefined,
         photo: c.photo || undefined,
+        googleId: c.google_id || undefined,
         labels: c.labels || [],
         notes: c.notes || '',
         linkedinUrl: c.linkedin_url || undefined,
@@ -161,6 +162,7 @@ export function useContacts() {
 
     try {
       const dbUpdates: Record<string, unknown> = {};
+      if (updates.phone !== undefined) dbUpdates.phone = updates.phone || null;
       if (updates.cadence !== undefined) dbUpdates.cadence = updates.cadence;
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
       if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl;
@@ -212,8 +214,56 @@ export function useContacts() {
     }
   };
 
+  const updateContactWithGoogleSync = async (
+    contactId: string, 
+    updates: Partial<Contact>, 
+    googleId: string | null,
+    shouldSyncToGoogle: boolean
+  ) => {
+    if (!user) return;
+
+    // First update in local DB
+    await updateContact(contactId, updates);
+
+    // If Pro/Business and has google_id, sync to Google
+    if (shouldSyncToGoogle && googleId && session?.provider_token) {
+      try {
+        const googleUpdates: Record<string, string | undefined> = {};
+        if (updates.phone !== undefined) googleUpdates.phone = updates.phone;
+
+        const { error } = await supabase.functions.invoke('update-google-contact', {
+          body: {
+            accessToken: session.provider_token,
+            googleId: googleId,
+            ...googleUpdates,
+          },
+        });
+
+        if (error) {
+          console.error('Failed to sync to Google:', error);
+          toast({
+            title: 'Google sync failed',
+            description: 'Changes saved locally but could not sync to Google Contacts',
+            variant: 'default',
+          });
+        }
+      } catch (error) {
+        console.error('Error syncing to Google:', error);
+      }
+    }
+  };
+
   const markAsContacted = async (contactId: string) => {
     await updateContact(contactId, { lastContacted: new Date() });
+  };
+
+  const getContactGoogleId = async (contactId: string): Promise<string | null> => {
+    const { data } = await supabase
+      .from('contacts')
+      .select('google_id')
+      .eq('id', contactId)
+      .single();
+    return data?.google_id || null;
   };
 
   return {
@@ -222,6 +272,8 @@ export function useContacts() {
     isSyncing,
     syncGoogleContacts,
     updateContact,
+    updateContactWithGoogleSync,
+    getContactGoogleId,
     markAsContacted,
     refetch: fetchContacts,
   };

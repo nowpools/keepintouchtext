@@ -6,6 +6,7 @@ export interface Contact {
   phone: string;
   email?: string;
   photo?: string;
+  googleId?: string;
   labels: string[];
   notes: string;
   linkedinUrl?: string;

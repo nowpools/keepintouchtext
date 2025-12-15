@@ -37,16 +37,19 @@ const isBirthdayToday = (contact: Contact): boolean => {
 const Index = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
-  const { contacts, isLoading, isSyncing, syncGoogleContacts, markAsContacted, updateContact } = useContacts();
+  const { contacts, isLoading, isSyncing, syncGoogleContacts, markAsContacted, updateContact, updateContactWithGoogleSync } = useContacts();
   const { categorySettings } = useCategorySettings();
   const { settings, isLoaded: settingsLoaded } = useAppSettings();
-  const { features, isTrialActive } = useSubscription();
+  const { features, isTrialActive, tier } = useSubscription();
   const { currentStreak, longestStreak, recordCompletion } = useStreak();
   const { recordContactCompletion } = useContactHistory();
   
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set());
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+
+  // Pro/Business users can sync to Google
+  const canSyncToGoogle = tier === 'pro' || tier === 'business';
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -355,7 +358,11 @@ const Index = () => {
                   onComplete={handleComplete}
                   onSnooze={handleSnooze}
                   onUpdateDraft={handleUpdateDraft}
+                  onUpdatePhone={async (id, phone, googleId, shouldSync) => {
+                    await updateContactWithGoogleSync(id, { phone }, googleId, shouldSync);
+                  }}
                   onNameClick={handleNameClick}
+                  canSyncToGoogle={canSyncToGoogle}
                 />
               </div>
             ))}

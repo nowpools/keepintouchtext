@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.fetch-linkedin]
 verify_jwt = false
+
+[functions.update-google-contact]
+verify_jwt = true
+
+[functions.create-google-contact]
+verify_jwt = true
