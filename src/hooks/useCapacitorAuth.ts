@@ -7,36 +7,39 @@ import { supabase } from '@/integrations/supabase/client';
 export const setupCapacitorAuth = () => {
   if (!Capacitor.isNativePlatform()) return;
 
-  // Listen for deep links (OAuth callback)
+  // Listen for app resume (when returning from browser OAuth)
+  CapacitorApp.addListener('appStateChange', async ({ isActive }) => {
+    if (isActive) {
+      // Check if we have a session when app becomes active
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) {
+        // Close browser if still open
+        try {
+          await Browser.close();
+        } catch (e) {
+          // Browser might already be closed
+        }
+      }
+    }
+  });
+
+  // Also listen for URL opens (deep links)
   CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
     console.log('App URL opened:', url);
     
-    // Check if this is an OAuth callback
     if (url.includes('access_token') || url.includes('code=')) {
-      // Close the browser
-      await Browser.close();
-      
-      // Extract the URL fragment/query params
-      const urlObj = new URL(url);
-      const hashParams = new URLSearchParams(urlObj.hash.substring(1));
-      const queryParams = urlObj.searchParams;
-      
-      const accessToken = hashParams.get('access_token') || queryParams.get('access_token');
-      const refreshToken = hashParams.get('refresh_token') || queryParams.get('refresh_token');
-      
-      if (accessToken && refreshToken) {
-        // Set the session manually
-        await supabase.auth.setSession({
-          access_token: accessToken,
-          refresh_token: refreshToken,
-        });
+      try {
+        await Browser.close();
+      } catch (e) {
+        // Browser might already be closed
       }
     }
   });
 };
 
 export const signInWithGoogleNative = async () => {
-  const redirectUrl = 'app.keepintouch.crm://callback';
+  // Use the web URL - user will complete OAuth in browser and return to app
+  const redirectUrl = 'https://keepintouchtext.com/dashboard';
   
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -47,7 +50,7 @@ export const signInWithGoogleNative = async () => {
         access_type: 'offline',
         prompt: 'consent',
       },
-      skipBrowserRedirect: true, // Important: we handle the redirect ourselves
+      skipBrowserRedirect: true,
     },
   });
 
