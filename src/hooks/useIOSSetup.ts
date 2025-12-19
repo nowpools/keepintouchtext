@@ -9,13 +9,7 @@ export const useIOSSetup = () => {
     }
 
     const setupIOS = async () => {
-      // Hide splash screen
-      try {
-        const { SplashScreen } = await import('@capacitor/splash-screen');
-        await SplashScreen.hide();
-      } catch (error) {
-        console.warn('SplashScreen not available:', error);
-      }
+      // Note: SplashScreen.hide() is called in main.tsx for faster hiding
 
       // Configure status bar for iOS
       try {
