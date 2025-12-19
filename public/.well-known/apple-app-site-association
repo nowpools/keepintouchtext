@@ -1,0 +1,11 @@
+{
+  "applinks": {
+    "apps": [],
+    "details": [
+      {
+        "appID": "TEAMID.app.keepintouch.crm",
+        "paths": ["/dashboard", "/auth", "/callback"]
+      }
+    ]
+  }
+}
