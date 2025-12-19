@@ -21,7 +21,7 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
-    scheme: 'App',
+    scheme: 'app.keepintouch.crm', // Custom URL scheme for OAuth callbacks
   },
   plugins: {
     SplashScreen: {

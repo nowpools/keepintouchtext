@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
+import { setupCapacitorAuth, signInWithGoogleNative } from './useCapacitorAuth';
 
 interface AuthContextType {
   user: User | null;
@@ -18,6 +20,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    // Setup Capacitor auth handlers for native platforms
+    setupCapacitorAuth();
+
     // Set up auth state listener FIRST
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -38,6 +43,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
+    // Use native OAuth flow for Capacitor apps
+    if (Capacitor.isNativePlatform()) {
+      return signInWithGoogleNative();
+    }
+
+    // Web OAuth flow
     const redirectUrl = `${window.location.origin}/dashboard`;
     
     const { error } = await supabase.auth.signInWithOAuth({
