@@ -27,57 +27,109 @@ export const setupCapacitorAuth = () => {
 
   // Listen for URL opens (universal links / custom scheme callbacks)
   CapacitorApp.addListener('appUrlOpen', async ({ url }) => {
-    if (isHandlingOAuthCallback) return;
+    console.log('[OAuth] App URL opened:', url);
+    
+    if (isHandlingOAuthCallback) {
+      console.log('[OAuth] Already handling callback, skipping');
+      return;
+    }
 
-    // We only care about auth callback URLs.
+    // Check for error params first
+    const hasError = url.includes('error=');
     const hasAuthParams = url.includes('code=') || url.includes('access_token') || url.includes('refresh_token');
-    if (!hasAuthParams) return;
+    
+    if (!hasAuthParams && !hasError) {
+      console.log('[OAuth] No auth params or error found');
+      return;
+    }
 
     isHandlingOAuthCallback = true;
+    console.log('[OAuth] Starting callback handling');
 
     try {
-      // Handle PKCE (code in query string)
-      let code: string | null = null;
+      // Parse URL - handle custom scheme
+      let params: URLSearchParams;
       try {
         const parsed = new URL(url);
-        code = parsed.searchParams.get('code');
+        params = parsed.searchParams;
+        // Also check hash for tokens
+        if (parsed.hash) {
+          const hashParams = new URLSearchParams(parsed.hash.substring(1));
+          hashParams.forEach((value, key) => params.set(key, value));
+        }
       } catch {
-        // URL parsing can fail for some custom schemes; fall back to string parsing.
-        const match = url.match(/[?&]code=([^&]+)/);
-        code = match?.[1] ? decodeURIComponent(match[1]) : null;
+        // Fallback for custom schemes that URL can't parse
+        const queryStart = url.indexOf('?');
+        const hashStart = url.indexOf('#');
+        let queryString = '';
+        
+        if (queryStart !== -1) {
+          const endIndex = hashStart !== -1 && hashStart > queryStart ? hashStart : url.length;
+          queryString = url.substring(queryStart + 1, endIndex);
+        }
+        if (hashStart !== -1) {
+          queryString += (queryString ? '&' : '') + url.substring(hashStart + 1);
+        }
+        params = new URLSearchParams(queryString);
       }
+
+      // Check for errors from Supabase
+      const error = params.get('error');
+      const errorDescription = params.get('error_description');
+      if (error) {
+        console.error('[OAuth] Auth error:', error, errorDescription);
+        alert(`Sign-in failed: ${errorDescription || error}`);
+        return;
+      }
+
+      const code = params.get('code');
+      const accessToken = params.get('access_token');
+      const refreshToken = params.get('refresh_token');
+
+      console.log('[OAuth] Params - code:', !!code, 'access_token:', !!accessToken, 'refresh_token:', !!refreshToken);
 
       if (code) {
-        const { error } = await supabase.auth.exchangeCodeForSession(code);
-        if (error) throw error;
-      } else {
-        // Handle implicit flow (tokens in hash)
-        const hash = url.split('#')[1] ?? '';
-        const params = new URLSearchParams(hash);
-        const access_token = params.get('access_token');
-        const refresh_token = params.get('refresh_token');
-
-        if (access_token && refresh_token) {
-          const { error } = await supabase.auth.setSession({ access_token, refresh_token });
-          if (error) throw error;
+        console.log('[OAuth] Exchanging code for session...');
+        const { data, error } = await supabase.auth.exchangeCodeForSession(code);
+        if (error) {
+          console.error('[OAuth] Code exchange failed:', error);
+          alert(`Sign-in failed: ${error.message}`);
+          return;
         }
+        console.log('[OAuth] Session established:', !!data.session);
+      } else if (accessToken && refreshToken) {
+        console.log('[OAuth] Setting session from tokens...');
+        const { data, error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+        if (error) {
+          console.error('[OAuth] Set session failed:', error);
+          alert(`Sign-in failed: ${error.message}`);
+          return;
+        }
+        console.log('[OAuth] Session established:', !!data.session);
+      } else {
+        console.warn('[OAuth] No valid auth data found in URL');
+        return;
       }
 
-      // Close the in-app browser and return user to app UI
+      // Close the in-app browser
       try {
         await Browser.close();
       } catch {
-        // ignore
+        // Browser might already be closed
       }
 
-      // If user isn't already on /auth, ensure we land on the app.
-      if (!window.location.pathname.startsWith('/auth')) {
-        window.location.replace('/dashboard');
+      // Force a session check to update the UI
+      const { data: { session } } = await supabase.auth.getSession();
+      console.log('[OAuth] Final session check:', !!session);
+      
+      if (session) {
+        // Navigate to dashboard
+        window.location.href = '/dashboard';
       }
     } catch (e) {
-      console.warn('OAuth callback handling failed:', e);
+      console.error('[OAuth] Callback handling failed:', e);
+      alert(`Sign-in error: ${e instanceof Error ? e.message : 'Unknown error'}`);
     } finally {
-      // Allow a future attempt if something went wrong.
       setTimeout(() => {
         isHandlingOAuthCallback = false;
       }, 1500);
