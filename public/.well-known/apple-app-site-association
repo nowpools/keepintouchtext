@@ -3,7 +3,7 @@
     "apps": [],
     "details": [
       {
-        "appID": "TEAMID.app.keepintouch.crm",
+        "appID": "6R57RUUCAB.app.keepintouch.crm",
         "paths": ["/dashboard", "/auth", "/callback"]
       }
     ]
