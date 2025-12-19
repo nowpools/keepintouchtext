@@ -2,7 +2,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { Capacitor } from "@capacitor/core";
 import { AuthProvider } from "@/hooks/useAuth";
 import { useIOSSetup } from "@/hooks/useIOSSetup";
 import Landing from "./pages/Landing";
@@ -17,6 +18,9 @@ import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
+// For native apps, skip landing page and go directly to auth
+const isNative = Capacitor.isNativePlatform();
+
 const AppContent = () => {
   useIOSSetup();
   return (
@@ -25,7 +29,8 @@ const AppContent = () => {
       <Sonner />
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Landing />} />
+          {/* Native apps skip landing, go to auth */}
+          <Route path="/" element={isNative ? <Navigate to="/auth" replace /> : <Landing />} />
           <Route path="/dashboard" element={<Index />} />
           <Route path="/contacts" element={<Contacts />} />
           <Route path="/settings" element={<Settings />} />
