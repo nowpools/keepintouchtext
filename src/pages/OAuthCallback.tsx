@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, ExternalLink } from "lucide-react";
 
-const APP_SCHEME = "app.keepintouch.crm://callback";
+const APP_SCHEME = "keepintouch://callback";
 
 export default function OAuthCallback() {
   const deepLink = useMemo(() => {

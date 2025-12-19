@@ -21,7 +21,7 @@ const config: CapacitorConfig = {
   ios: {
     contentInset: 'automatic',
     preferredContentMode: 'mobile',
-    scheme: 'app.keepintouch.crm', // Custom URL scheme for OAuth callbacks
+    // Custom URL scheme "keepintouch" must be added in Xcode → Target → Info → URL Types
   },
   plugins: {
     SplashScreen: {
