@@ -90,7 +90,7 @@ const Auth = () => {
           <img 
             src={appIcon} 
             alt="Keep In Touch" 
-            className="w-20 h-20 mb-4 rounded-2xl shadow-lg"
+            className="w-20 h-20 mb-4 rounded-2xl shadow-lg mx-auto"
           />
           <h1 className="text-4xl font-bold mb-2">Stay Connected</h1>
           <p className="text-muted-foreground text-lg max-w-md">
