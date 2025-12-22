@@ -21,6 +21,7 @@ import { SocialLinkButton } from '@/components/SocialLinkButton';
 import { ConversationContextDialog } from '@/components/ConversationContextDialog';
 import { BirthdayField } from '@/components/BirthdayField';
 import { EditablePhone } from '@/components/EditablePhone';
+import { SendTextDialog } from '@/components/SendTextDialog';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -53,7 +54,7 @@ interface ContactDetailDialogProps {
   onUpdateContact: (contactId: string, updates: Partial<Contact>) => Promise<void>;
   onUpdatePhone?: (contactId: string, phone: string, googleId: string | null, shouldSyncToGoogle: boolean) => Promise<void>;
   canSyncToGoogle?: boolean;
-  onSendText?: (contact: Contact) => void;
+  onMarkAsContacted?: (contactId: string) => void;
 }
 
 export const ContactDetailDialog = ({
@@ -64,7 +65,7 @@ export const ContactDetailDialog = ({
   onUpdateContact,
   onUpdatePhone,
   canSyncToGoogle = false,
-  onSendText,
+  onMarkAsContacted,
 }: ContactDetailDialogProps) => {
   const [editedNotes, setEditedNotes] = useState('');
   const [editedLinkedinUrl, setEditedLinkedinUrl] = useState('');
@@ -72,6 +73,7 @@ export const ContactDetailDialog = ({
   const [editedYoutubeUrl, setEditedYoutubeUrl] = useState('');
   const [showConversationContextDialog, setShowConversationContextDialog] = useState(false);
   const [showCadenceOverride, setShowCadenceOverride] = useState(false);
+  const [showSendTextDialog, setShowSendTextDialog] = useState(false);
   const [localContact, setLocalContact] = useState<Contact | null>(null);
   const { features, isTrialActive } = useSubscription();
   
@@ -176,17 +178,15 @@ export const ContactDetailDialog = ({
 
           <div className="space-y-4 mt-4">
             {/* Send Text Button */}
-            {onSendText && (
-              <Button
-                variant="imessage"
-                className="w-full"
-                onClick={() => onSendText(localContact)}
-                disabled={!localContact.phone}
-              >
-                <MessageSquare className="w-4 h-4" />
-                Send Text
-              </Button>
-            )}
+            <Button
+              variant="imessage"
+              className="w-full"
+              onClick={() => setShowSendTextDialog(true)}
+              disabled={!localContact.phone}
+            >
+              <MessageSquare className="w-4 h-4" />
+              Send Text
+            </Button>
 
             {/* Category */}
             <div className="space-y-2">
@@ -453,6 +453,19 @@ export const ContactDetailDialog = ({
         onSave={async (context) => {
           await onUpdateContact(localContact.id, { conversationContext: context });
           setLocalContact(prev => prev ? { ...prev, conversationContext: context } : null);
+        }}
+      />
+
+      {/* Send Text Dialog */}
+      <SendTextDialog
+        contact={localContact}
+        open={showSendTextDialog}
+        onOpenChange={setShowSendTextDialog}
+        onComplete={(contactId) => {
+          if (onMarkAsContacted) {
+            onMarkAsContacted(contactId);
+          }
+          setShowSendTextDialog(false);
         }}
       />
     </>
