@@ -149,8 +149,11 @@ export const ContactDetailDialog = ({
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
-          className="max-w-md top-[calc(env(safe-area-inset-top)+0.75rem)] translate-y-0 data-[state=open]:slide-in-from-top-2 flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden"
-          style={{ maxHeight: 'calc(var(--vvh, 100dvh) - 1.5rem)' }}
+          className="max-w-md top-[calc(env(safe-area-inset-top)+0.75rem)] translate-y-0 data-[state=open]:slide-in-from-top-2 flex max-h-[calc(100dvh-1.5rem)] min-h-0 flex-col overflow-hidden"
+          style={{
+            maxHeight:
+              'calc(var(--vvh, 100dvh) - 1.5rem - max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)))',
+          }}
         >
           <DialogHeader>
             <div className="flex items-center gap-4">
@@ -187,11 +190,14 @@ export const ContactDetailDialog = ({
 
           <div
             ref={scrollAreaRef}
-            className="mt-4 flex-1 overflow-y-auto overscroll-contain pr-1"
+            className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
             onFocusCapture={handleFocusCapture}
             style={{
+              WebkitOverflowScrolling: 'touch',
               paddingBottom:
-                'calc(env(safe-area-inset-bottom) + var(--keyboard-inset, 0px) + 8rem)',
+                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 8rem)',
+              scrollPaddingBottom:
+                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 8rem)',
             }}
           >
             <div className="space-y-4">
