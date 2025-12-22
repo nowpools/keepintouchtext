@@ -38,6 +38,7 @@ import {
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useVisualViewportVars } from '@/hooks/useVisualViewportVars';
+import appIcon from '@/assets/app-icon.png';
 
 interface CategorySetting {
   id: string;
@@ -233,9 +234,9 @@ export const ContactDetailDialog = ({
             style={{
               WebkitOverflowScrolling: 'touch',
               paddingBottom:
-                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 20rem)',
+                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 28rem)',
               scrollPaddingBottom:
-                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 20rem)',
+                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 28rem)',
             }}
           >
             <div className="space-y-4">
@@ -469,13 +470,21 @@ export const ContactDetailDialog = ({
 
               {/* Keep In Touch logo spacer for keyboard scroll room */}
               <div
-                aria-hidden
-                className="pointer-events-none flex flex-col items-center justify-center pt-24 pb-16"
+                className="pointer-events-none flex flex-col items-center justify-center gap-3 pt-10 pb-8"
+                style={{
+                  minHeight:
+                    'calc(max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 18rem)',
+                }}
               >
+                <img
+                  src={appIcon}
+                  alt="Keep In Touch logo"
+                  className="h-16 w-16 opacity-40"
+                  loading="lazy"
+                />
                 <span className="text-3xl font-bold tracking-tight text-muted-foreground/40">
                   Keep In Touch
                 </span>
-                <span className="text-sm text-muted-foreground/30 mt-2">Stay connected</span>
               </div>
             </div>
           </div>
