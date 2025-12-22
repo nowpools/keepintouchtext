@@ -85,6 +85,7 @@ export const SocialUrlEditDialog = ({
   const [editedHandle, setEditedHandle] = useState('');
   const [isFullUrlMode, setIsFullUrlMode] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const Icon = config.icon;
 
   useEffect(() => {
@@ -99,14 +100,27 @@ export const SocialUrlEditDialog = ({
         inputRef.current?.focus();
       }, 100);
     }
+    
+    // Cleanup timeout on unmount or close
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [open, currentValue, config.baseUrl]);
 
-  const handleSave = () => {
-    const newValue = isFullUrlMode
-      ? editedHandle
-      : buildFullUrl(editedHandle, config.baseUrl);
-    onSave(config.urlKey, newValue);
-    onOpenChange(false);
+  // Auto-save with debounce
+  const autoSave = (value: string, fullUrlMode: boolean) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
+    }
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      const newValue = fullUrlMode
+        ? value
+        : buildFullUrl(value, config.baseUrl);
+      onSave(config.urlKey, newValue);
+    }, 500);
   };
 
   const handleChange = (value: string) => {
@@ -116,12 +130,15 @@ export const SocialUrlEditDialog = ({
       if (isCustomUrl(value, config.baseUrl)) {
         setIsFullUrlMode(true);
         setEditedHandle(value);
+        autoSave(value, true);
         return;
       }
       setEditedHandle(handle);
+      autoSave(handle, false);
       return;
     }
     setEditedHandle(value);
+    autoSave(value, isFullUrlMode);
   };
 
   const toggleFullUrlMode = () => {
@@ -129,10 +146,12 @@ export const SocialUrlEditDialog = ({
       // Convert full URL back to handle
       const handle = extractHandle(editedHandle, config.baseUrl);
       setEditedHandle(handle);
+      autoSave(handle, false);
     } else {
       // Convert handle to full URL
       const fullUrl = buildFullUrl(editedHandle, config.baseUrl);
       setEditedHandle(fullUrl);
+      autoSave(fullUrl, true);
     }
     setIsFullUrlMode(!isFullUrlMode);
   };
@@ -141,7 +160,7 @@ export const SocialUrlEditDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md top-[25%] translate-y-0 sm:top-[50%] sm:-translate-y-1/2">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Icon className="w-5 h-5" />
@@ -182,7 +201,7 @@ export const SocialUrlEditDialog = ({
                 type="url"
                 onKeyDown={(e) => {
                   if (e.key === 'Enter') {
-                    handleSave();
+                    onOpenChange(false);
                   }
                 }}
               />
@@ -200,7 +219,7 @@ export const SocialUrlEditDialog = ({
                   className="rounded-l-none"
                   onKeyDown={(e) => {
                     if (e.key === 'Enter') {
-                      handleSave();
+                      onOpenChange(false);
                     }
                   }}
                 />
@@ -216,11 +235,8 @@ export const SocialUrlEditDialog = ({
         </div>
 
         <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave}>
-            Save
+          <Button onClick={() => onOpenChange(false)}>
+            Done
           </Button>
         </DialogFooter>
       </DialogContent>
