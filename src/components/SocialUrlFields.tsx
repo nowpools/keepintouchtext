@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import type { FocusEvent } from 'react';
 import { Input } from '@/components/ui/input';
 import { SocialLinkButton } from '@/components/SocialLinkButton';
 import { SocialPlatform, SocialPlatformSettings, Contact } from '@/types/contact';
@@ -195,6 +196,11 @@ export const SocialUrlFields = ({ contact, visiblePlatforms, onUpdate }: SocialU
     }
   };
 
+  const handleFieldFocus = (e: FocusEvent<HTMLInputElement>) => {
+    // Scroll the focused field near the top for easier editing (especially on mobile).
+    e.currentTarget.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   // Only show platforms that are enabled in settings
   const enabledPlatforms = platformOrder.filter(platform => visiblePlatforms[platform]);
 
@@ -245,8 +251,10 @@ export const SocialUrlFields = ({ contact, visiblePlatforms, onUpdate }: SocialU
                 value={handleValue}
                 onChange={(e) => handleChange(platform, config.urlKey, e.target.value)}
                 onBlur={() => handleBlur(platform, config.urlKey)}
+                onFocus={handleFieldFocus}
                 placeholder={config.baseUrl ? `${config.baseUrl}${config.placeholder}` : config.placeholder}
                 type="url"
+                className="scroll-mt-24"
               />
             ) : (
               <div className="flex">
@@ -257,8 +265,9 @@ export const SocialUrlFields = ({ contact, visiblePlatforms, onUpdate }: SocialU
                   value={handleValue}
                   onChange={(e) => handleChange(platform, config.urlKey, e.target.value)}
                   onBlur={() => handleBlur(platform, config.urlKey)}
+                  onFocus={handleFieldFocus}
                   placeholder={config.placeholder}
-                  className={cn("rounded-l-none")}
+                  className={cn("rounded-l-none scroll-mt-24")}
                 />
               </div>
             )}
