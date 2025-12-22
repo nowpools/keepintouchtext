@@ -4,10 +4,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Users, Sparkles, Calendar, MessageSquare, Loader2 } from 'lucide-react';
+import { Sparkles, Calendar, MessageSquare, Loader2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { STRIPE_PRICES, type BillingInterval } from '@/config/stripe';
+import appIcon from '@/assets/app-icon.png';
 
 const Auth = () => {
   const { user, isLoading, signInWithGoogle } = useAuth();
@@ -86,9 +87,11 @@ const Auth = () => {
       <div className="min-h-screen flex flex-col items-center justify-center px-4 py-16">
         {/* Hero */}
         <div className="text-center mb-8 animate-fade-in">
-          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-primary/10 mb-4">
-            <Users className="w-8 h-8 text-primary" />
-          </div>
+          <img 
+            src={appIcon} 
+            alt="Keep In Touch" 
+            className="w-20 h-20 mb-4 rounded-2xl shadow-lg"
+          />
           <h1 className="text-4xl font-bold mb-2">Stay Connected</h1>
           <p className="text-muted-foreground text-lg max-w-md">
             Never lose touch with the people who matter most
