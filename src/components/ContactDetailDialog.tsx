@@ -468,21 +468,24 @@ export const ContactDetailDialog = ({
                 </Button>
               )}
 
-              {/* Keep In Touch logo for branding and keyboard scroll room */}
-              <div
-                className="pointer-events-none flex items-center justify-center py-12 mt-8"
-                style={{
-                  minHeight:
-                    'calc(max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 12rem)',
-                }}
-              >
+              {/* Keep In Touch logo (always visible directly below Hide Contact) */}
+              <div className="flex items-center justify-center py-8">
                 <img
                   src={keepInTouchLogo}
-                  alt="Keep In Touch"
-                  className="h-20 w-auto opacity-50"
+                  alt="Keep In Touch logo"
+                  className="h-16 w-auto opacity-70"
                   loading="lazy"
                 />
               </div>
+
+              {/* Extra scroll room when the keyboard is open (mobile) */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none"
+                style={{
+                  height: 'max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px))',
+                }}
+              />
             </div>
           </div>
         </DialogContent>
