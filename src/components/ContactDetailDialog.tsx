@@ -467,14 +467,16 @@ export const ContactDetailDialog = ({
                 </Button>
               )}
 
-              {/* Extra scroll room so bottom fields can clear the iOS keyboard */}
+              {/* Keep In Touch logo spacer for keyboard scroll room */}
               <div
                 aria-hidden
-                className="pointer-events-none"
-                style={{
-                  height: 'calc(max(var(--keyboard-inset, 0px), var(--keyboard-height, 0px)) + 10rem)',
-                }}
-              />
+                className="pointer-events-none flex flex-col items-center justify-center pt-24 pb-16"
+              >
+                <span className="text-3xl font-bold tracking-tight text-muted-foreground/40">
+                  Keep In Touch
+                </span>
+                <span className="text-sm text-muted-foreground/30 mt-2">Stay connected</span>
+              </div>
             </div>
           </div>
         </DialogContent>
