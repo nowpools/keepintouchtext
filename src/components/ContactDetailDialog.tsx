@@ -233,9 +233,9 @@ export const ContactDetailDialog = ({
             style={{
               WebkitOverflowScrolling: 'touch',
               paddingBottom:
-                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 8rem)',
+                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 20rem)',
               scrollPaddingBottom:
-                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 8rem)',
+                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 20rem)',
             }}
           >
             <div className="space-y-4">
