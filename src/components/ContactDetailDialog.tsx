@@ -38,7 +38,7 @@ import {
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useVisualViewportVars } from '@/hooks/useVisualViewportVars';
-import appIcon from '@/assets/app-icon.png';
+import keepInTouchLogo from '@/assets/keep-in-touch-logo.png';
 
 interface CategorySetting {
   id: string;
@@ -468,23 +468,20 @@ export const ContactDetailDialog = ({
                 </Button>
               )}
 
-              {/* Keep In Touch logo spacer for keyboard scroll room */}
+              {/* Keep In Touch logo for branding and keyboard scroll room */}
               <div
-                className="pointer-events-none flex flex-col items-center justify-center gap-3 pt-10 pb-8"
+                className="pointer-events-none flex items-center justify-center py-12 mt-8"
                 style={{
                   minHeight:
-                    'calc(max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 18rem)',
+                    'calc(max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 12rem)',
                 }}
               >
                 <img
-                  src={appIcon}
-                  alt="Keep In Touch logo"
-                  className="h-16 w-16 opacity-40"
+                  src={keepInTouchLogo}
+                  alt="Keep In Touch"
+                  className="h-20 w-auto opacity-50"
                   loading="lazy"
                 />
-                <span className="text-3xl font-bold tracking-tight text-muted-foreground/40">
-                  Keep In Touch
-                </span>
               </div>
             </div>
           </div>
