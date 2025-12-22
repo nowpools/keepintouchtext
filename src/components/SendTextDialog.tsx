@@ -86,7 +86,7 @@ export const SendTextDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md top-[5%] translate-y-0 data-[state=open]:slide-in-from-top-2">
+      <DialogContent className="max-w-md top-[calc(env(safe-area-inset-top)+0.75rem)] translate-y-0 data-[state=open]:slide-in-from-top-2 flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden">
         <DialogHeader>
           <div className="flex items-center gap-4">
             {contact.photo ? (
@@ -112,56 +112,61 @@ export const SendTextDialog = ({
           </div>
         </DialogHeader>
 
-        <div className="space-y-4 mt-4">
-          {/* Last Contacted */}
-          <div className="flex items-center gap-2 text-sm">
-            <Calendar className="w-4 h-4 text-muted-foreground" />
-            <span className="text-muted-foreground">Last contacted:</span>
-            <span className="font-medium">
-              {contact.lastContacted 
-                ? formatDistanceToNow(contact.lastContacted, { addSuffix: true })
-                : 'Never'}
-            </span>
-          </div>
-
-          {/* Notes preview */}
-          {contact.notes && (
-            <div className="p-3 bg-secondary/50 rounded-lg">
-              <p className="text-sm text-secondary-foreground leading-relaxed line-clamp-2">
-                {contact.notes}
-              </p>
+        {/* Scrollable content (stays above keyboard within viewport) */}
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="space-y-4 mt-4 pb-4">
+            {/* Last Contacted */}
+            <div className="flex items-center gap-2 text-sm">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Last contacted:</span>
+              <span className="font-medium">
+                {contact.lastContacted 
+                  ? formatDistanceToNow(contact.lastContacted, { addSuffix: true })
+                  : 'Never'}
+              </span>
             </div>
-          )}
 
-          {/* AI Draft */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-                <Sparkles className="w-4 h-4 text-primary" />
-                <span>Suggested message</span>
+            {/* Notes preview */}
+            {contact.notes && (
+              <div className="p-3 bg-secondary/50 rounded-lg">
+                <p className="text-sm text-secondary-foreground leading-relaxed line-clamp-2">
+                  {contact.notes}
+                </p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleGenerateMessage}
-                disabled={isGenerating}
-                className="h-7 text-xs"
-              >
-                <RefreshCw className={`w-3 h-3 mr-1 ${isGenerating ? 'animate-spin' : ''}`} />
-                {isGenerating ? 'Generating...' : 'Regenerate'}
-              </Button>
-            </div>
-            <Textarea
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              className="min-h-[100px] resize-none bg-card"
-              placeholder={isGenerating ? "Generating message..." : "Write your message..."}
-              disabled={isGenerating}
-            />
-          </div>
+            )}
 
-          {/* Actions */}
-          <div className="flex gap-3 pt-2">
+            {/* AI Draft */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span>Suggested message</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleGenerateMessage}
+                  disabled={isGenerating}
+                  className="h-7 text-xs"
+                >
+                  <RefreshCw className={`w-3 h-3 mr-1 ${isGenerating ? 'animate-spin' : ''}`} />
+                  {isGenerating ? 'Generating...' : 'Regenerate'}
+                </Button>
+              </div>
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                className="min-h-[100px] resize-none bg-card"
+                placeholder={isGenerating ? "Generating message..." : "Write your message..."}
+                disabled={isGenerating}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Fixed actions (always visible) */}
+        <div className="border-t border-border/60 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
+          <div className="flex gap-3">
             <Button
               variant="imessage"
               className="flex-1"
