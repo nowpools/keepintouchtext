@@ -148,12 +148,18 @@ export const ContactDetailDialog = ({
 
     const containerRect = container.getBoundingClientRect();
     const fieldRect = fieldEl.getBoundingClientRect();
-
-    // Keep a little breathing room above the keyboard
-    const keyboardInset = getKeyboardInsetPx();
     const padding = 16;
-    const visibleBottom = containerRect.bottom - keyboardInset - padding;
-    const visibleTop = containerRect.top + padding;
+
+    // Prefer VisualViewport intersection (most reliable on iOS when the keyboard is open)
+    const vv = window.visualViewport;
+
+    const visibleTop = vv
+      ? Math.max(containerRect.top, vv.offsetTop) + padding
+      : containerRect.top + padding;
+
+    const visibleBottom = vv
+      ? Math.min(containerRect.bottom, vv.offsetTop + vv.height) - padding
+      : containerRect.bottom - getKeyboardInsetPx() - padding;
 
     if (fieldRect.bottom > visibleBottom) {
       container.scrollTop += fieldRect.bottom - visibleBottom;
