@@ -126,6 +126,42 @@ export const ContactDetailDialog = ({
     [localContact, onUpdateContact],
   );
 
+  const getCssPxVar = (element: Element, name: string) => {
+    const raw = window.getComputedStyle(element).getPropertyValue(name).trim();
+    const n = Number.parseFloat(raw);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const getKeyboardInsetPx = () => {
+    const root = document.documentElement;
+    const body = document.body;
+    return Math.max(
+      getCssPxVar(root, '--keyboard-inset'),
+      getCssPxVar(root, '--keyboard-height'),
+      body ? getCssPxVar(body, '--keyboard-height') : 0,
+    );
+  };
+
+  const scrollFieldIntoView = (fieldEl: HTMLElement) => {
+    const container = scrollAreaRef.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const fieldRect = fieldEl.getBoundingClientRect();
+
+    // Keep a little breathing room above the keyboard
+    const keyboardInset = getKeyboardInsetPx();
+    const padding = 16;
+    const visibleBottom = containerRect.bottom - keyboardInset - padding;
+    const visibleTop = containerRect.top + padding;
+
+    if (fieldRect.bottom > visibleBottom) {
+      container.scrollTop += fieldRect.bottom - visibleBottom;
+    } else if (fieldRect.top < visibleTop) {
+      container.scrollTop -= visibleTop - fieldRect.top;
+    }
+  };
+
   const handleFocusCapture = useCallback((e: FocusEvent<HTMLElement>) => {
     const target = e.target as HTMLElement | null;
     if (!target) return;
@@ -133,15 +169,11 @@ export const ContactDetailDialog = ({
     const tag = target.tagName;
     if (tag !== 'INPUT' && tag !== 'TEXTAREA') return;
 
-    // iOS: the viewport often updates after a short delay when the keyboard opens
-    window.setTimeout(() => {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-    }, 50);
-
-    window.setTimeout(() => {
-      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
-    }, 350);
+    // iOS: the viewport/keyboard settles a moment after focus.
+    window.setTimeout(() => scrollFieldIntoView(target), 50);
+    window.setTimeout(() => scrollFieldIntoView(target), 350);
   }, []);
+
 
   if (!localContact) return null;
 
@@ -151,8 +183,8 @@ export const ContactDetailDialog = ({
         <DialogContent
           className="max-w-md top-[calc(env(safe-area-inset-top)+0.75rem)] translate-y-0 data-[state=open]:slide-in-from-top-2 flex max-h-[calc(100dvh-1.5rem)] min-h-0 flex-col overflow-hidden"
           style={{
-            maxHeight:
-              'calc(var(--vvh, 100dvh) - 1.5rem - max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)))',
+            // `--vvh` is already the *visible* viewport height on iOS (excludes the keyboard).
+            maxHeight: 'calc(var(--vvh, 100dvh) - 1.5rem)',
           }}
         >
           <DialogHeader>
@@ -428,6 +460,15 @@ export const ContactDetailDialog = ({
                   Hide Contact
                 </Button>
               )}
+
+              {/* Extra scroll room so bottom fields can clear the iOS keyboard */}
+              <div
+                aria-hidden
+                className="pointer-events-none"
+                style={{
+                  height: 'calc(max(var(--keyboard-inset, 0px), var(--keyboard-height, 0px)) + 10rem)',
+                }}
+              />
             </div>
           </div>
         </DialogContent>
