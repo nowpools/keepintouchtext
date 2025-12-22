@@ -86,7 +86,7 @@ export const SendTextDialog = ({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md top-[5%] translate-y-0 data-[state=open]:slide-in-from-top-2">
         <DialogHeader>
           <div className="flex items-center gap-4">
             {contact.photo ? (
