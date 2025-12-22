@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { FocusEvent } from 'react';
 import { Contact, CadenceType, CADENCE_LABELS } from '@/types/contact';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
@@ -36,6 +37,7 @@ import {
 } from 'lucide-react';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useAppSettings } from '@/hooks/useAppSettings';
+import { useVisualViewportVars } from '@/hooks/useVisualViewportVars';
 
 interface CategorySetting {
   id: string;
@@ -69,11 +71,14 @@ export const ContactDetailDialog = ({
   const [showCadenceOverride, setShowCadenceOverride] = useState(false);
   const [showSendTextDialog, setShowSendTextDialog] = useState(false);
   const [localContact, setLocalContact] = useState<Contact | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
 
   const { settings } = useAppSettings();
   const { features, isTrialActive } = useSubscription();
 
   const hasBirthdayFeature = features.birthdayField || isTrialActive;
+
+  useVisualViewportVars(open);
 
   // Sync local state with contact prop changes
   useEffect(() => {
@@ -121,6 +126,23 @@ export const ContactDetailDialog = ({
     [localContact, onUpdateContact],
   );
 
+  const handleFocusCapture = useCallback((e: FocusEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
+
+    const tag = target.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+
+    // iOS: the viewport often updates after a short delay when the keyboard opens
+    window.setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }, 50);
+
+    window.setTimeout(() => {
+      target.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'nearest' });
+    }, 350);
+  }, []);
+
   if (!localContact) return null;
 
   return (
@@ -128,6 +150,7 @@ export const ContactDetailDialog = ({
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogContent
           className="max-w-md top-[calc(env(safe-area-inset-top)+0.75rem)] translate-y-0 data-[state=open]:slide-in-from-top-2 flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden"
+          style={{ maxHeight: 'calc(var(--vvh, 100dvh) - 1.5rem)' }}
         >
           <DialogHeader>
             <div className="flex items-center gap-4">
@@ -162,7 +185,15 @@ export const ContactDetailDialog = ({
             </div>
           </DialogHeader>
 
-          <div className="mt-4 flex-1 overflow-y-auto overscroll-contain pr-1 pb-[calc(env(safe-area-inset-bottom)+8rem)]">
+          <div
+            ref={scrollAreaRef}
+            className="mt-4 flex-1 overflow-y-auto overscroll-contain pr-1"
+            onFocusCapture={handleFocusCapture}
+            style={{
+              paddingBottom:
+                'calc(env(safe-area-inset-bottom) + var(--keyboard-inset, 0px) + 8rem)',
+            }}
+          >
             <div className="space-y-4">
               {/* Send Text Button */}
               <Button
