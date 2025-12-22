@@ -102,7 +102,8 @@ interface SocialUrlFieldsProps {
 }
 
 export const SocialUrlFields = ({ contact, visiblePlatforms, onUpdate }: SocialUrlFieldsProps) => {
-  const [editingPlatform, setEditingPlatform] = useState<SocialPlatform | null>(null);
+  const [editingPlatform, setEditingPlatform] = useState<SocialPlatform>('linkedin');
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   // Only show platforms that are enabled in settings
   const enabledPlatforms = platformOrder.filter(platform => visiblePlatforms[platform]);
@@ -119,6 +120,12 @@ export const SocialUrlFields = ({ contact, visiblePlatforms, onUpdate }: SocialU
     onUpdate(urlKey, value);
   };
 
+  const openEditor = (platform: SocialPlatform) => {
+    setEditingPlatform(platform);
+    // Small delay to ensure state is set before opening
+    setTimeout(() => setDialogOpen(true), 10);
+  };
+
   return (
     <div className="space-y-3">
       {enabledPlatforms.map(platform => {
@@ -129,10 +136,11 @@ export const SocialUrlFields = ({ contact, visiblePlatforms, onUpdate }: SocialU
         const displayValue = handle || 'Not set';
 
         return (
-          <div
+          <button
             key={platform}
-            className="flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors"
-            onClick={() => setEditingPlatform(platform)}
+            type="button"
+            className="w-full flex items-center justify-between p-3 rounded-lg border bg-card hover:bg-accent/50 cursor-pointer transition-colors text-left"
+            onClick={() => openEditor(platform)}
           >
             <div className="flex items-center gap-3 min-w-0">
               <Icon className="w-5 h-5 shrink-0 text-muted-foreground" />
@@ -149,21 +157,19 @@ export const SocialUrlFields = ({ contact, visiblePlatforms, onUpdate }: SocialU
             <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
               <SocialLinkButton url={currentValue || undefined} platform={platform} />
             </div>
-          </div>
+          </button>
         );
       })}
 
-      {/* Edit Dialog */}
-      {editingPlatform && (
-        <SocialUrlEditDialog
-          open={!!editingPlatform}
-          onOpenChange={(open) => !open && setEditingPlatform(null)}
-          platform={editingPlatform}
-          config={platformConfig[editingPlatform]}
-          currentValue={(contact[platformConfig[editingPlatform].urlKey] as string) || ''}
-          onSave={handleSave}
-        />
-      )}
+      {/* Edit Dialog - Always mounted */}
+      <SocialUrlEditDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        platform={editingPlatform}
+        config={platformConfig[editingPlatform]}
+        currentValue={(contact[platformConfig[editingPlatform].urlKey] as string) || ''}
+        onSave={handleSave}
+      />
 
       <p className="text-xs text-muted-foreground pt-2">
         Tap any platform to edit. Just enter the username - the URL prefix is added automatically.
