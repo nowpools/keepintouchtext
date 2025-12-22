@@ -256,14 +256,16 @@ const Contacts = () => {
     <Layout>
       <div className="space-y-6">
         {/* Header */}
-        <div className="flex items-start justify-between animate-fade-in">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-bold">Contacts</h1>
-            <p className="text-muted-foreground">
-              {contacts.length} people in your network
-            </p>
+        <div className="animate-fade-in space-y-4">
+          <div className="flex items-start justify-between">
+            <div className="space-y-1">
+              <h1 className="text-3xl font-bold">Contacts</h1>
+              <p className="text-muted-foreground">
+                {contacts.length} people in your network
+              </p>
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               onClick={() => setShowAddContactDialog(true)}
               className="gap-2"
