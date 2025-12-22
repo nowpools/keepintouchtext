@@ -181,7 +181,11 @@ export const ContactDetailDialog = ({
             <Button
               variant="imessage"
               className="w-full"
-              onClick={() => setShowSendTextDialog(true)}
+              onClick={() => {
+                // Close details first so we only ever show one overlay at a time
+                onOpenChange(false);
+                setShowSendTextDialog(true);
+              }}
               disabled={!localContact.phone}
             >
               <MessageSquare className="w-4 h-4" />
