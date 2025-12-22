@@ -397,6 +397,7 @@ const Index = () => {
             await updateContactWithGoogleSync(id, { phone }, googleId, shouldSync);
           }}
           canSyncToGoogle={canSyncToGoogle}
+          onMarkAsContacted={handleComplete}
         />
       </div>
     </Layout>
