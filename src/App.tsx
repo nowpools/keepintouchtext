@@ -15,6 +15,7 @@ import OAuthCallback from "./pages/OAuthCallback";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Pricing from "./pages/Pricing";
+import Support from "./pages/Support";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -39,6 +40,7 @@ const AppContent = () => {
           <Route path="/callback" element={<OAuthCallback />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
+          <Route path="/support" element={<Support />} />
           <Route path="/pricing" element={<Pricing />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
