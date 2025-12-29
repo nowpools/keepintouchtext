@@ -2,13 +2,14 @@ import { createContext, useContext, useEffect, useState, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
-import { setupCapacitorAuth, signInWithGoogleNative } from './useCapacitorAuth';
+import { setupCapacitorAuth, signInWithGoogleNative, signInWithAppleNative } from './useCapacitorAuth';
 
 interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
+  signInWithApple: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
 
@@ -66,12 +67,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error };
   };
 
+  const signInWithApple = async () => {
+    // Apple Sign-In only works on native iOS
+    if (Capacitor.isNativePlatform()) {
+      return signInWithAppleNative();
+    }
+
+    return { error: new Error('Apple Sign-In is only available on iOS devices') };
+  };
+
   const signOut = async () => {
     await supabase.auth.signOut();
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signInWithGoogle, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, signInWithGoogle, signInWithApple, signOut }}>
       {children}
     </AuthContext.Provider>
   );
