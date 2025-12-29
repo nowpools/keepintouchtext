@@ -30,15 +30,6 @@ const Landing = () => {
               <span className="font-bold text-xl">Keep In Touch</span>
             </Link>
             <div className="flex items-center gap-4">
-              <Link to="/pricing" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
-                Pricing
-              </Link>
-              <Link to="/privacy" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
-                Privacy
-              </Link>
-              <Link to="/terms" className="text-sm text-muted-foreground hover:text-foreground transition-colors hidden sm:block">
-                Terms
-              </Link>
               {!user && (
                 <Link to="/auth" className="text-sm font-medium text-foreground hover:text-primary transition-colors">
                   Login
@@ -250,7 +241,8 @@ const Landing = () => {
             <div>
               <h4 className="font-semibold mb-4">Support</h4>
               <ul className="space-y-2 text-sm text-muted-foreground">
-                <li><a href="mailto:support@keepintouch.app" className="hover:text-foreground transition-colors">Contact Us</a></li>
+                <li><Link to="/support" className="hover:text-foreground transition-colors">Help & Support</Link></li>
+                <li><a href="mailto:support@keepintouchtext.com" className="hover:text-foreground transition-colors">Contact Us</a></li>
               </ul>
             </div>
           </div>
