@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App as CapacitorApp } from '@capacitor/app';
+import { SignInWithApple, SignInWithAppleOptions, SignInWithAppleResponse } from '@capacitor-community/apple-sign-in';
 import { supabase } from '@/integrations/supabase/client';
 
 // Handle OAuth for Capacitor native apps
@@ -166,5 +167,53 @@ export const signInWithGoogleNative = async () => {
   }
 
   return { error: null };
+};
+
+export const signInWithAppleNative = async () => {
+  if (!Capacitor.isNativePlatform()) {
+    return { error: new Error('Apple Sign-In is only available on iOS devices') };
+  }
+
+  try {
+    const options: SignInWithAppleOptions = {
+      clientId: 'app.lovable.964d240fc90b41c999888a8968fb6ab0',
+      redirectURI: 'https://byhoziuwsaxpemmyhauo.supabase.co/auth/v1/callback',
+      scopes: 'email name',
+      state: crypto.randomUUID(),
+      nonce: crypto.randomUUID(),
+    };
+
+    console.log('[Apple OAuth] Starting Sign in with Apple...');
+    const response: SignInWithAppleResponse = await SignInWithApple.authorize(options);
+    console.log('[Apple OAuth] Authorization response received');
+
+    if (!response.response?.identityToken) {
+      console.error('[Apple OAuth] No identity token received');
+      return { error: new Error('No identity token received from Apple') };
+    }
+
+    console.log('[Apple OAuth] Signing in with Supabase using identity token...');
+    const { data, error } = await supabase.auth.signInWithIdToken({
+      provider: 'apple',
+      token: response.response.identityToken,
+    });
+
+    if (error) {
+      console.error('[Apple OAuth] Supabase sign-in failed:', error);
+      return { error };
+    }
+
+    console.log('[Apple OAuth] Sign-in successful:', !!data.session);
+    return { error: null };
+  } catch (error: any) {
+    // User cancelled the sign-in
+    if (error?.code === 'ERR_CANCELED' || error?.message?.includes('canceled')) {
+      console.log('[Apple OAuth] User cancelled sign-in');
+      return { error: new Error('Sign-in was cancelled') };
+    }
+    
+    console.error('[Apple OAuth] Sign-in error:', error);
+    return { error: error instanceof Error ? error : new Error(error?.message || 'Apple Sign-In failed') };
+  }
 };
 
