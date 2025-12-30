@@ -140,8 +140,38 @@ export function useContacts() {
     fetchContacts();
   }, [fetchContacts]);
 
+  const getValidGoogleToken = async (): Promise<string | null> => {
+    if (!user) return null;
+
+    // First check if we have a valid provider_token in session
+    if (session?.provider_token) {
+      return session.provider_token;
+    }
+
+    // Otherwise, try to refresh the token using our edge function
+    try {
+      const { data, error } = await supabase.functions.invoke('refresh-google-token', {
+        body: { userId: user.id },
+      });
+
+      if (error || data?.needsReauth) {
+        console.log('Token refresh failed, needs re-auth');
+        return null;
+      }
+
+      return data?.accessToken || null;
+    } catch (error) {
+      console.error('Error getting valid Google token:', error);
+      return null;
+    }
+  };
+
   const syncGoogleContacts = async () => {
-    if (!session?.provider_token) {
+    if (!user) return;
+
+    const accessToken = await getValidGoogleToken();
+    
+    if (!accessToken) {
       toast({
         title: 'Re-authentication required',
         description: 'Please sign out and sign in again to sync contacts',
@@ -154,8 +184,8 @@ export function useContacts() {
     try {
       const { data, error } = await supabase.functions.invoke('sync-google-contacts', {
         body: { 
-          accessToken: session.provider_token,
-          userId: user?.id 
+          accessToken,
+          userId: user.id 
         },
       });
 
@@ -254,29 +284,33 @@ export function useContacts() {
     await updateContact(contactId, updates);
 
     // If Pro/Business and has google_id, sync to Google
-    if (shouldSyncToGoogle && googleId && session?.provider_token) {
-      try {
-        const googleUpdates: Record<string, string | undefined> = {};
-        if (updates.phone !== undefined) googleUpdates.phone = updates.phone;
+    if (shouldSyncToGoogle && googleId) {
+      const accessToken = await getValidGoogleToken();
+      
+      if (accessToken) {
+        try {
+          const googleUpdates: Record<string, string | undefined> = {};
+          if (updates.phone !== undefined) googleUpdates.phone = updates.phone;
 
-        const { error } = await supabase.functions.invoke('update-google-contact', {
-          body: {
-            accessToken: session.provider_token,
-            googleId: googleId,
-            ...googleUpdates,
-          },
-        });
-
-        if (error) {
-          console.error('Failed to sync to Google:', error);
-          toast({
-            title: 'Google sync failed',
-            description: 'Changes saved locally but could not sync to Google Contacts',
-            variant: 'default',
+          const { error } = await supabase.functions.invoke('update-google-contact', {
+            body: {
+              accessToken,
+              googleId: googleId,
+              ...googleUpdates,
+            },
           });
+
+          if (error) {
+            console.error('Failed to sync to Google:', error);
+            toast({
+              title: 'Google sync failed',
+              description: 'Changes saved locally but could not sync to Google Contacts',
+              variant: 'default',
+            });
+          }
+        } catch (error) {
+          console.error('Error syncing to Google:', error);
         }
-      } catch (error) {
-        console.error('Error syncing to Google:', error);
       }
     }
   };

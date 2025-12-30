@@ -15,6 +15,30 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Store Google tokens when we have them from OAuth
+async function storeGoogleTokens(userId: string, providerToken: string, providerRefreshToken?: string) {
+  try {
+    const updates: Record<string, unknown> = {
+      google_access_token: providerToken,
+      google_token_expiry: new Date(Date.now() + 3600 * 1000).toISOString(), // 1 hour from now
+      updated_at: new Date().toISOString(),
+    };
+    
+    if (providerRefreshToken) {
+      updates.google_refresh_token = providerRefreshToken;
+    }
+
+    await supabase
+      .from('user_integrations')
+      .update(updates)
+      .eq('user_id', userId);
+      
+    console.log('Google tokens stored successfully');
+  } catch (error) {
+    console.error('Failed to store Google tokens:', error);
+  }
+}
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
@@ -30,6 +54,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setSession(session);
         setUser(session?.user ?? null);
         setIsLoading(false);
+        
+        // Store Google tokens when user signs in with Google
+        if (session?.user && session.provider_token) {
+          setTimeout(() => {
+            storeGoogleTokens(
+              session.user.id,
+              session.provider_token!,
+              session.provider_refresh_token
+            );
+          }, 0);
+        }
       }
     );
 
@@ -38,6 +73,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(session);
       setUser(session?.user ?? null);
       setIsLoading(false);
+      
+      // Store tokens if available on initial load
+      if (session?.user && session.provider_token) {
+        storeGoogleTokens(
+          session.user.id,
+          session.provider_token,
+          session.provider_refresh_token
+        );
+      }
     });
 
     return () => subscription.unsubscribe();
