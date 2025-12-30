@@ -68,6 +68,16 @@ export function useAppContacts() {
           created_at: rawContact.created_at as string,
           updated_at: rawContact.updated_at as string,
           deleted_at: rawContact.deleted_at as string | null | undefined,
+          // New core product fields
+          label: rawContact.label as string | undefined,
+          cadence_days: rawContact.cadence_days as number | undefined,
+          last_contacted: rawContact.last_contacted as string | undefined,
+          next_contact_date: rawContact.next_contact_date as string | undefined,
+          birthday: rawContact.birthday as string | undefined,
+          linkedin_url: rawContact.linkedin_url as string | undefined,
+          x_url: rawContact.x_url as string | undefined,
+          youtube_url: rawContact.youtube_url as string | undefined,
+          conversation_context: rawContact.conversation_context as string | undefined,
           links: contactLinks,
           hasAppleLink: contactLinks.some(l => l.source === 'apple'),
           hasGoogleLink: contactLinks.some(l => l.source === 'google'),
@@ -174,6 +184,16 @@ export function useAppContacts() {
       if (updates.tags !== undefined) updateData.tags = updates.tags;
       if (updates.source_preference !== undefined) updateData.source_preference = updates.source_preference;
       if (updates.deleted_at !== undefined) updateData.deleted_at = updates.deleted_at;
+      // New core product fields
+      if (updates.label !== undefined) updateData.label = updates.label;
+      if (updates.cadence_days !== undefined) updateData.cadence_days = updates.cadence_days;
+      if (updates.last_contacted !== undefined) updateData.last_contacted = updates.last_contacted;
+      if (updates.next_contact_date !== undefined) updateData.next_contact_date = updates.next_contact_date;
+      if (updates.birthday !== undefined) updateData.birthday = updates.birthday;
+      if (updates.linkedin_url !== undefined) updateData.linkedin_url = updates.linkedin_url;
+      if (updates.x_url !== undefined) updateData.x_url = updates.x_url;
+      if (updates.youtube_url !== undefined) updateData.youtube_url = updates.youtube_url;
+      if (updates.conversation_context !== undefined) updateData.conversation_context = updates.conversation_context;
 
       const { error: updateError } = await supabase
         .from('app_contacts')
@@ -335,9 +355,66 @@ export function useAppContacts() {
     }
   }, [user, contacts, updateContact, deleteContact, fetchContacts]);
 
+  // Mark a contact as contacted and update next_contact_date
+  const markContacted = useCallback(async (contactId: string): Promise<boolean> => {
+    if (!user) return false;
+
+    try {
+      const contact = contacts.find(c => c.id === contactId);
+      const cadenceDays = contact?.cadence_days || 30;
+      
+      const now = new Date();
+      const nextDate = new Date(now);
+      nextDate.setDate(nextDate.getDate() + cadenceDays);
+
+      const { error: updateError } = await supabase
+        .from('app_contacts')
+        .update({
+          last_contacted: now.toISOString(),
+          next_contact_date: nextDate.toISOString(),
+        })
+        .eq('id', contactId)
+        .eq('user_id', user.id);
+
+      if (updateError) throw updateError;
+
+      await fetchContacts();
+      return true;
+    } catch (e) {
+      console.error('[useAppContacts] Mark contacted error:', e);
+      setError(e instanceof Error ? e.message : 'Failed to mark as contacted');
+      return false;
+    }
+  }, [user, contacts, fetchContacts]);
+
+  // Get contacts that are due today or overdue
+  const dueContacts = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    return visibleContacts.filter(contact => {
+      // Include if overdue
+      if (contact.next_contact_date && new Date(contact.next_contact_date) <= today) {
+        return true;
+      }
+      // Include if birthday is today
+      if (contact.birthday) {
+        const bday = new Date(contact.birthday);
+        return bday.getMonth() === today.getMonth() && bday.getDate() === today.getDate();
+      }
+      return false;
+    }).sort((a, b) => {
+      // Sort by: overdue first, then by next_contact_date
+      const aDate = a.next_contact_date ? new Date(a.next_contact_date) : new Date('9999-12-31');
+      const bDate = b.next_contact_date ? new Date(b.next_contact_date) : new Date('9999-12-31');
+      return aDate.getTime() - bDate.getTime();
+    });
+  }, [visibleContacts]);
+
   return {
     contacts: visibleContacts,
     allContacts: contacts,
+    dueContacts,
     isLoading,
     error,
     refetch: fetchContacts,
@@ -347,5 +424,6 @@ export function useAppContacts() {
     addContactLink,
     removeContactLink,
     mergeContacts,
+    markContacted,
   };
 }

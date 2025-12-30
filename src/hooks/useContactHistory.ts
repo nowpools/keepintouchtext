@@ -1,11 +1,51 @@
-import { useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { toast } from '@/hooks/use-toast';
 import type { AppContact } from '@/types/contacts';
 
-export function useContactHistory() {
+interface ContactHistoryEntry {
+  id: string;
+  user_id: string;
+  contact_id: string;
+  contact_name: string;
+  contacted_at: string;
+  label?: string;
+  notes?: string;
+  reason?: string;
+  cadence?: string;
+}
+
+export function useContactHistory(contactId?: string) {
   const { user } = useAuth();
+  const [history, setHistory] = useState<ContactHistoryEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  const fetchHistory = useCallback(async () => {
+    if (!user || !contactId) return;
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('contact_history')
+        .select('*')
+        .eq('user_id', user.id)
+        .eq('contact_id', contactId)
+        .order('contacted_at', { ascending: false })
+        .limit(50);
+
+      if (error) throw error;
+      setHistory((data || []) as ContactHistoryEntry[]);
+    } catch (err) {
+      console.error('Error fetching contact history:', err);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [user, contactId]);
+
+  useEffect(() => {
+    fetchHistory();
+  }, [fetchHistory]);
 
   const recordContactCompletion = useCallback(async (
     contact: AppContact,
@@ -20,18 +60,23 @@ export function useContactHistory() {
           user_id: user.id,
           contact_id: contact.id,
           contact_name: contact.display_name,
-          label: contact.tags[0] || null,
+          label: contact.label || null,
           notes: contact.notes || null,
-          cadence: null,
+          cadence: contact.cadence_days?.toString() || null,
           reason,
           contacted_at: new Date().toISOString(),
         } as any);
 
       if (error) throw error;
+      
+      // Refetch history if we're tracking this contact
+      if (contactId === contact.id) {
+        fetchHistory();
+      }
     } catch (err) {
       console.error('Error recording contact history:', err);
     }
-  }, [user]);
+  }, [user, contactId, fetchHistory]);
 
   const exportContactHistory = useCallback(async () => {
     if (!user) return;
@@ -94,7 +139,10 @@ export function useContactHistory() {
   }, [user]);
 
   return {
+    history,
+    isLoading,
     recordContactCompletion,
     exportContactHistory,
+    refetch: fetchHistory,
   };
 }

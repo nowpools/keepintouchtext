@@ -33,6 +33,16 @@ export interface AppContact {
   created_at: string;
   updated_at: string;
   deleted_at?: string | null;
+  // Core product fields
+  label?: string;
+  cadence_days?: number;
+  last_contacted?: string;
+  next_contact_date?: string;
+  birthday?: string;
+  linkedin_url?: string;
+  x_url?: string;
+  youtube_url?: string;
+  conversation_context?: string;
 }
 
 // Contact Link (links app contacts to external sources)
