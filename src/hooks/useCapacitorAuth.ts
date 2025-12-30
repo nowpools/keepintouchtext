@@ -139,8 +139,11 @@ export const setupCapacitorAuth = () => {
 };
 
 export const signInWithGoogleNative = async () => {
+  console.log('[OAuth] Starting Google sign-in...');
+  
   // Redirect back to a https URL (required), which will then deep-link into the app.
   const redirectUrl = 'https://964d240f-c90b-41c9-9988-8a8968fb6ab0.lovableproject.com/callback';
+  console.log('[OAuth] Redirect URL:', redirectUrl);
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
@@ -155,15 +158,28 @@ export const signInWithGoogleNative = async () => {
     },
   });
 
-  if (error) return { error };
+  if (error) {
+    console.error('[OAuth] signInWithOAuth error:', error);
+    return { error };
+  }
+
+  console.log('[OAuth] OAuth URL generated:', data?.url);
+  console.log('[OAuth] URL length:', data?.url?.length);
 
   if (data?.url) {
-    // Note: iOS SFSafariViewController won't open Universal Links automatically.
-    // We rely on the /callback page to deep-link back into the app.
-    await Browser.open({
-      url: data.url,
-      presentationStyle: 'fullscreen',
-    });
+    try {
+      console.log('[OAuth] Opening browser...');
+      await Browser.open({
+        url: data.url,
+        presentationStyle: 'fullscreen',
+      });
+      console.log('[OAuth] Browser.open() completed successfully');
+    } catch (browserError) {
+      console.error('[OAuth] Browser.open() failed:', browserError);
+      return { error: browserError as Error };
+    }
+  } else {
+    console.warn('[OAuth] No URL returned from signInWithOAuth');
   }
 
   return { error: null };
