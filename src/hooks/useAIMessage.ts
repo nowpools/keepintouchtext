@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { AppSettings } from '@/types/contact';
 
 export function useAIMessage() {
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const getSettings = (): { aiTone: string; aiLength: string } => {
+  const getSettings = (): Pick<AppSettings, 'aiTone' | 'aiLength'> => {
     try {
       const saved = localStorage.getItem('kitSettings');
       if (saved) {

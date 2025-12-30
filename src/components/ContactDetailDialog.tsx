@@ -1,14 +1,9 @@
-import { useState, useEffect } from 'react';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import type { FocusEvent } from 'react';
+import { Contact, CadenceType, CADENCE_LABELS } from '@/types/contact';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import {
   Select,
   SelectContent,
@@ -16,359 +11,510 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { 
-  User, 
-  MessageSquare, 
-  Linkedin, 
-  Twitter, 
-  Youtube,
-  Save,
-  Trash2,
-  Clock,
-  History
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { ConversationContextDialog } from '@/components/ConversationContextDialog';
+import { BirthdayField } from '@/components/BirthdayField';
+import { EditablePhone } from '@/components/EditablePhone';
+import { SendTextDialog } from '@/components/SendTextDialog';
+import { SocialUrlFields } from '@/components/SocialUrlFields';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { format, formatDistanceToNow } from 'date-fns';
+import {
+  Calendar,
+  StickyNote,
+  MessageSquare,
+  X,
+  MessageSquareText,
+  CalendarClock,
+  EyeOff,
+  Eye,
 } from 'lucide-react';
-import { format, parseISO } from 'date-fns';
-import type { ContactWithLinks } from '@/types/contacts';
-import { useCategorySettings } from '@/hooks/useCategorySettings';
-import { useContactHistory } from '@/hooks/useContactHistory';
-import { BirthdayField } from './BirthdayField';
+import { useSubscription } from '@/hooks/useSubscription';
+import { useAppSettings } from '@/hooks/useAppSettings';
+import { useVisualViewportVars } from '@/hooks/useVisualViewportVars';
+import keepInTouchLogo from '@/assets/keep-in-touch-logo.png';
 
-interface ContactDetailDialogProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  contact: ContactWithLinks | null;
-  onSave: (id: string, updates: Partial<ContactWithLinks>) => Promise<boolean>;
-  onDelete?: (id: string) => Promise<boolean>;
+interface CategorySetting {
+  id: string;
+  label_name: string;
+  cadence_days: number;
 }
 
-export function ContactDetailDialog({
+interface ContactDetailDialogProps {
+  contact: Contact | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  categorySettings: CategorySetting[];
+  onUpdateContact: (contactId: string, updates: Partial<Contact>) => Promise<void>;
+  onUpdatePhone?: (contactId: string, phone: string, googleId: string | null, shouldSyncToGoogle: boolean) => Promise<void>;
+  canSyncToGoogle?: boolean;
+  onMarkAsContacted?: (contactId: string) => void;
+}
+
+export const ContactDetailDialog = ({
+  contact,
   open,
   onOpenChange,
-  contact,
-  onSave,
-  onDelete,
-}: ContactDetailDialogProps) {
-  const { categorySettings } = useCategorySettings();
-  const { history, isLoading: historyLoading } = useContactHistory(contact?.id);
-  
-  // Parse birthday string to month/day/year components
-  const parseBirthday = (birthdayStr: string | undefined) => {
-    if (!birthdayStr) return { month: null, day: null, year: null };
-    try {
-      const date = parseISO(birthdayStr);
-      return {
-        month: date.getMonth() + 1,
-        day: date.getDate(),
-        year: date.getFullYear(),
-      };
-    } catch {
-      return { month: null, day: null, year: null };
-    }
-  };
-  
-  const formatBirthdayToString = (birthday: { month: number | null; day: number | null; year: number | null }) => {
-    if (!birthday.month || !birthday.day) return '';
-    const year = birthday.year || 2000;
-    const month = birthday.month.toString().padStart(2, '0');
-    const day = birthday.day.toString().padStart(2, '0');
-    return `${year}-${month}-${day}`;
-  };
-  
-  const [formData, setFormData] = useState({
-    display_name: '',
-    label: '',
-    cadence_days: 30,
-    birthday: { month: null as number | null, day: null as number | null, year: null as number | null },
-    linkedin_url: '',
-    x_url: '',
-    youtube_url: '',
-    conversation_context: '',
-    notes: '',
-  });
-  const [isSaving, setIsSaving] = useState(false);
+  categorySettings,
+  onUpdateContact,
+  onUpdatePhone,
+  canSyncToGoogle = false,
+  onMarkAsContacted,
+}: ContactDetailDialogProps) => {
+  const [editedNotes, setEditedNotes] = useState('');
+  const [showConversationContextDialog, setShowConversationContextDialog] = useState(false);
+  const [showCadenceOverride, setShowCadenceOverride] = useState(false);
+  const [showSendTextDialog, setShowSendTextDialog] = useState(false);
+  const [localContact, setLocalContact] = useState<Contact | null>(null);
+  const scrollAreaRef = useRef<HTMLDivElement | null>(null);
 
+  const { settings } = useAppSettings();
+  const { features, isTrialActive } = useSubscription();
+
+  const hasBirthdayFeature = features.birthdayField || isTrialActive;
+
+  useVisualViewportVars(open);
+
+  // Sync local state with contact prop changes
   useEffect(() => {
     if (contact) {
-      setFormData({
-        display_name: contact.display_name || '',
-        label: contact.label || '',
-        cadence_days: contact.cadence_days || 30,
-        birthday: parseBirthday(contact.birthday),
-        linkedin_url: contact.linkedin_url || '',
-        x_url: contact.x_url || '',
-        youtube_url: contact.youtube_url || '',
-        conversation_context: contact.conversation_context || '',
-        notes: contact.notes || '',
-      });
+      setEditedNotes(contact.notes || '');
+      setShowCadenceOverride(false);
+      setLocalContact(contact);
     }
   }, [contact]);
 
-  const handleSave = async () => {
-    if (!contact) return;
-    
-    setIsSaving(true);
-    try {
-      // If category changed, update cadence_days from category settings
-      let cadenceDays = formData.cadence_days;
-      if (formData.label) {
-        const category = categorySettings.find(c => c.label_name === formData.label);
-        if (category) {
-          cadenceDays = category.cadence_days;
-        }
-      }
+  // Re-sync when dialog opens to ensure latest data
+  useEffect(() => {
+    if (open && contact) {
+      setLocalContact(contact);
+    }
+  }, [open, contact]);
 
-      const birthdayStr = formatBirthdayToString(formData.birthday);
+  const handleCadenceChange = async (newCadence: CadenceType) => {
+    if (!localContact) return;
+    await onUpdateContact(localContact.id, { cadence: newCadence });
+    setLocalContact(prev => (prev ? { ...prev, cadence: newCadence } : null));
+  };
 
-      await onSave(contact.id, {
-        display_name: formData.display_name,
-        label: formData.label || undefined,
-        cadence_days: cadenceDays,
-        birthday: birthdayStr || undefined,
-        linkedin_url: formData.linkedin_url || undefined,
-        x_url: formData.x_url || undefined,
-        youtube_url: formData.youtube_url || undefined,
-        conversation_context: formData.conversation_context || undefined,
-        notes: formData.notes || undefined,
-      });
-      onOpenChange(false);
-    } finally {
-      setIsSaving(false);
+  const handleCategoryChange = async (categoryName: string) => {
+    if (!localContact) return;
+    await onUpdateContact(localContact.id, { labels: [categoryName] });
+    setLocalContact(prev => (prev ? { ...prev, labels: [categoryName] } : null));
+  };
+
+  const handleNotesBlur = async () => {
+    if (localContact && editedNotes !== localContact.notes) {
+      await onUpdateContact(localContact.id, { notes: editedNotes });
+      setLocalContact(prev => (prev ? { ...prev, notes: editedNotes } : null));
     }
   };
 
-  const handleDelete = async () => {
-    if (!contact || !onDelete) return;
-    
-    if (confirm('Are you sure you want to delete this contact?')) {
-      await onDelete(contact.id);
-      onOpenChange(false);
+  const handleSocialUpdate = useCallback(
+    async (urlKey: keyof Contact, value: string) => {
+      if (!localContact) return;
+
+      const sanitized = value.trim().slice(0, 2048);
+      await onUpdateContact(localContact.id, { [urlKey]: sanitized } as unknown as Partial<Contact>);
+      setLocalContact(prev => (prev ? ({ ...prev, [urlKey]: sanitized } as Contact) : null));
+    },
+    [localContact, onUpdateContact],
+  );
+
+  const getCssPxVar = (element: Element, name: string) => {
+    const raw = window.getComputedStyle(element).getPropertyValue(name).trim();
+    const n = Number.parseFloat(raw);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  const getKeyboardInsetPx = () => {
+    const root = document.documentElement;
+    const body = document.body;
+    return Math.max(
+      getCssPxVar(root, '--keyboard-inset'),
+      getCssPxVar(root, '--keyboard-height'),
+      body ? getCssPxVar(body, '--keyboard-height') : 0,
+    );
+  };
+
+  const scrollFieldIntoView = (fieldEl: HTMLElement) => {
+    const container = scrollAreaRef.current;
+    if (!container) return;
+
+    const containerRect = container.getBoundingClientRect();
+    const fieldRect = fieldEl.getBoundingClientRect();
+    const padding = 16;
+
+    // Prefer VisualViewport intersection (most reliable on iOS when the keyboard is open)
+    const vv = window.visualViewport;
+
+    const visibleTop = vv
+      ? Math.max(containerRect.top, vv.offsetTop) + padding
+      : containerRect.top + padding;
+
+    const visibleBottom = vv
+      ? Math.min(containerRect.bottom, vv.offsetTop + vv.height) - padding
+      : containerRect.bottom - getKeyboardInsetPx() - padding;
+
+    if (fieldRect.bottom > visibleBottom) {
+      container.scrollTop += fieldRect.bottom - visibleBottom;
+    } else if (fieldRect.top < visibleTop) {
+      container.scrollTop -= visibleTop - fieldRect.top;
     }
   };
 
-  if (!contact) return null;
+  const handleFocusCapture = useCallback((e: FocusEvent<HTMLElement>) => {
+    const target = e.target as HTMLElement | null;
+    if (!target) return;
 
-  const primaryPhone = contact.phones.find(p => p.primary)?.value || contact.phones[0]?.value;
-  const primaryEmail = contact.emails.find(e => e.primary)?.value || contact.emails[0]?.value;
+    const tag = target.tagName;
+    if (tag !== 'INPUT' && tag !== 'TEXTAREA') return;
+
+    // iOS: the viewport/keyboard settles a moment after focus.
+    window.setTimeout(() => scrollFieldIntoView(target), 50);
+    window.setTimeout(() => scrollFieldIntoView(target), 350);
+  }, []);
+
+
+  if (!localContact) return null;
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <User className="w-5 h-5" />
-            {contact.display_name}
-          </DialogTitle>
-        </DialogHeader>
-
-        <Tabs defaultValue="details" className="w-full">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="details">Details</TabsTrigger>
-            <TabsTrigger value="social">Social</TabsTrigger>
-            <TabsTrigger value="history">History</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="details" className="space-y-4 mt-4">
-            {/* Basic Info */}
-            <div className="space-y-2">
-              <Label>Name</Label>
-              <Input
-                value={formData.display_name}
-                onChange={(e) => setFormData(prev => ({ ...prev, display_name: e.target.value }))}
-              />
-            </div>
-
-            {/* Contact Info (Read-only) */}
-            {primaryPhone && (
-              <div className="space-y-1">
-                <Label className="text-muted-foreground">Phone</Label>
-                <p className="text-sm">{primaryPhone}</p>
-              </div>
-            )}
-            {primaryEmail && (
-              <div className="space-y-1">
-                <Label className="text-muted-foreground">Email</Label>
-                <p className="text-sm">{primaryEmail}</p>
-              </div>
-            )}
-
-            {/* Category */}
-            <div className="space-y-2">
-              <Label>Category</Label>
-              <Select
-                value={formData.label}
-                onValueChange={(value) => setFormData(prev => ({ ...prev, label: value }))}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select category" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="">No category</SelectItem>
-                  {categorySettings.map(category => (
-                    <SelectItem key={category.id} value={category.label_name}>
-                      {category.label_name} ({category.cadence_days} days)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Birthday */}
-            <BirthdayField
-              month={formData.birthday.month}
-              day={formData.birthday.day}
-              year={formData.birthday.year}
-              onChange={(birthday) => setFormData(prev => ({ ...prev, birthday }))}
-            />
-
-            {/* Notes */}
-            <div className="space-y-2">
-              <Label>Notes</Label>
-              <Textarea
-                value={formData.notes}
-                onChange={(e) => setFormData(prev => ({ ...prev, notes: e.target.value }))}
-                placeholder="Personal notes about this contact..."
-                className="min-h-[80px]"
-              />
-            </div>
-
-            {/* Conversation Context for AI */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <MessageSquare className="w-4 h-4" />
-                Conversation Context (for AI)
-              </Label>
-              <Textarea
-                value={formData.conversation_context}
-                onChange={(e) => setFormData(prev => ({ ...prev, conversation_context: e.target.value }))}
-                placeholder="What have you talked about? Topics, inside jokes, recent events..."
-                className="min-h-[100px]"
-              />
-              <p className="text-xs text-muted-foreground">
-                This helps the AI generate more personalized messages
-              </p>
-            </div>
-          </TabsContent>
-
-          <TabsContent value="social" className="space-y-4 mt-4">
-            {/* LinkedIn */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Linkedin className="w-4 h-4" />
-                LinkedIn Profile
-              </Label>
-              <Input
-                value={formData.linkedin_url}
-                onChange={(e) => setFormData(prev => ({ ...prev, linkedin_url: e.target.value }))}
-                placeholder="https://linkedin.com/in/username"
-              />
-            </div>
-
-            {/* X/Twitter */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Twitter className="w-4 h-4" />
-                X / Twitter
-              </Label>
-              <Input
-                value={formData.x_url}
-                onChange={(e) => setFormData(prev => ({ ...prev, x_url: e.target.value }))}
-                placeholder="https://x.com/username"
-              />
-            </div>
-
-            {/* YouTube */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <Youtube className="w-4 h-4" />
-                YouTube Channel
-              </Label>
-              <Input
-                value={formData.youtube_url}
-                onChange={(e) => setFormData(prev => ({ ...prev, youtube_url: e.target.value }))}
-                placeholder="https://youtube.com/@channel"
-              />
-            </div>
-
-            <p className="text-xs text-muted-foreground mt-4">
-              Social profiles help the AI understand your contact's professional context 
-              and generate more relevant messages.
-            </p>
-          </TabsContent>
-
-          <TabsContent value="history" className="space-y-4 mt-4">
-            {/* Last Contacted */}
-            {contact.last_contacted && (
-              <div className="flex items-center gap-2 text-sm text-muted-foreground mb-4">
-                <Clock className="w-4 h-4" />
-                Last contacted: {format(new Date(contact.last_contacted), 'PPP')}
-              </div>
-            )}
-
-            {/* Contact History */}
-            <div className="space-y-2">
-              <Label className="flex items-center gap-2">
-                <History className="w-4 h-4" />
-                Contact History
-              </Label>
-              
-              {historyLoading ? (
-                <p className="text-sm text-muted-foreground">Loading history...</p>
-              ) : history.length === 0 ? (
-                <p className="text-sm text-muted-foreground">No contact history yet</p>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent
+          className="max-w-md top-[calc(env(safe-area-inset-top)+0.75rem)] translate-y-0 data-[state=open]:slide-in-from-top-2 flex max-h-[calc(100dvh-1.5rem)] min-h-0 flex-col overflow-hidden"
+          style={{
+            // `--vvh` is already the *visible* viewport height on iOS (excludes the keyboard).
+            maxHeight: 'calc(var(--vvh, 100dvh) - 1.5rem)',
+          }}
+        >
+          <DialogHeader>
+            <div className="flex items-center gap-4">
+              {localContact.photo ? (
+                <img
+                  src={localContact.photo}
+                  alt={localContact.name}
+                  className="w-16 h-16 rounded-full object-cover"
+                  loading="lazy"
+                />
               ) : (
-                <div className="space-y-2 max-h-[300px] overflow-y-auto">
-                  {history.map(entry => (
-                    <div 
-                      key={entry.id} 
-                      className="p-3 rounded-lg bg-secondary/50 text-sm"
-                    >
-                      <div className="flex items-center justify-between mb-1">
-                        <span className="font-medium">
-                          {format(new Date(entry.contacted_at), 'PPP')}
-                        </span>
-                        {entry.label && (
-                          <Badge variant="outline" className="text-xs">
-                            {entry.label}
-                          </Badge>
-                        )}
-                      </div>
-                      {entry.notes && (
-                        <p className="text-muted-foreground">{entry.notes}</p>
-                      )}
-                    </div>
-                  ))}
+                <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
+                  <span className="text-2xl font-semibold text-primary">
+                    {localContact.name.charAt(0)}
+                  </span>
                 </div>
               )}
+              <div>
+                <DialogTitle className="text-xl">{localContact.name}</DialogTitle>
+                <EditablePhone
+                  phone={localContact.phone}
+                  onSave={async (newPhone) => {
+                    if (onUpdatePhone) {
+                      await onUpdatePhone(localContact.id, newPhone, localContact.googleId || null, canSyncToGoogle);
+                    } else {
+                      await onUpdateContact(localContact.id, { phone: newPhone });
+                    }
+                    setLocalContact(prev => (prev ? { ...prev, phone: newPhone } : null));
+                  }}
+                />
+              </div>
             </div>
-          </TabsContent>
-        </Tabs>
+          </DialogHeader>
 
-        {/* Actions */}
-        <div className="flex justify-between pt-4 border-t">
-          {onDelete && (
-            <Button 
-              variant="destructive" 
-              size="sm" 
-              onClick={handleDelete}
-              className="gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Delete
-            </Button>
-          )}
-          <div className="flex gap-2 ml-auto">
-            <Button variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
-            </Button>
-            <Button onClick={handleSave} disabled={isSaving} className="gap-2">
-              <Save className="w-4 h-4" />
-              Save
-            </Button>
+          <div
+            ref={scrollAreaRef}
+            className="mt-4 min-h-0 flex-1 overflow-y-auto overscroll-contain pr-1"
+            onFocusCapture={handleFocusCapture}
+            style={{
+              WebkitOverflowScrolling: 'touch',
+              paddingBottom:
+                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 28rem)',
+              scrollPaddingBottom:
+                'calc(env(safe-area-inset-bottom) + max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px)) + 28rem)',
+            }}
+          >
+            <div className="space-y-4">
+              {/* Send Text Button */}
+              <Button
+                variant="imessage"
+                className="w-full"
+                onClick={() => {
+                  // Close details first so we only ever show one overlay at a time
+                  onOpenChange(false);
+                  setShowSendTextDialog(true);
+                }}
+                disabled={!localContact.phone}
+              >
+                <MessageSquare className="w-4 h-4" />
+                Send Text
+              </Button>
+
+              {/* Category */}
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Category</Label>
+                <Select
+                  value={localContact.labels[0] || ''}
+                  onValueChange={handleCategoryChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Select a category" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categorySettings.map((category) => (
+                      <SelectItem key={category.id} value={category.label_name}>
+                        {category.label_name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              {/* Last Contacted */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span className="text-muted-foreground">Last contacted:</span>
+                  <span className="font-medium">
+                    {localContact.lastContacted
+                      ? formatDistanceToNow(localContact.lastContacted, { addSuffix: true })
+                      : 'Never'}
+                  </span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-5 px-2 text-xs gap-1"
+                  onClick={() => setShowCadenceOverride(prev => !prev)}
+                >
+                  <CalendarClock className="w-3 h-3" />
+                  Override
+                </Button>
+              </div>
+
+              {/* Cadence Override Section */}
+              {showCadenceOverride && (
+                <div className="space-y-3 p-3 rounded-lg border border-border bg-muted/30 animate-fade-in">
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Custom Cadence</Label>
+                    <Select
+                      value={localContact.cadence}
+                      onValueChange={(v) => handleCadenceChange(v as CadenceType)}
+                    >
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="Select cadence" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {Object.entries(CADENCE_LABELS).map(([value, label]) => (
+                          <SelectItem key={value} value={value}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <Label className="text-xs text-muted-foreground">Specific Follow-up Date</Label>
+                    <div className="flex gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className="flex-1 justify-start text-left font-normal h-9"
+                          >
+                            <Calendar className="mr-2 h-4 w-4" />
+                            {localContact.followUpOverride
+                              ? format(localContact.followUpOverride, 'PPP')
+                              : (
+                                <span className="text-muted-foreground">Pick a date</span>
+                              )}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <CalendarComponent
+                            mode="single"
+                            selected={localContact.followUpOverride || undefined}
+                            onSelect={async (date) => {
+                              await onUpdateContact(localContact.id, { followUpOverride: date || null });
+                              setLocalContact(prev => (prev ? { ...prev, followUpOverride: date || null } : null));
+                            }}
+                            initialFocus
+                            className="pointer-events-auto"
+                          />
+                        </PopoverContent>
+                      </Popover>
+                      {localContact.followUpOverride && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-9 w-9"
+                          onClick={async () => {
+                            await onUpdateContact(localContact.id, { followUpOverride: null });
+                            setLocalContact(prev => (prev ? { ...prev, followUpOverride: null } : null));
+                          }}
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Override the calculated next due date
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Birthday - Pro/Business only */}
+              {hasBirthdayFeature && (
+                <BirthdayField
+                  month={localContact.birthdayMonth}
+                  day={localContact.birthdayDay}
+                  year={localContact.birthdayYear}
+                  onChange={async (birthday) => {
+                    await onUpdateContact(localContact.id, {
+                      birthdayMonth: birthday.month,
+                      birthdayDay: birthday.day,
+                      birthdayYear: birthday.year,
+                    });
+                    setLocalContact(prev => (prev
+                      ? {
+                        ...prev,
+                        birthdayMonth: birthday.month,
+                        birthdayDay: birthday.day,
+                        birthdayYear: birthday.year,
+                      }
+                      : null));
+                  }}
+                />
+              )}
+
+              {/* Notes */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <StickyNote className="w-4 h-4" />
+                  <span>Notes</span>
+                </div>
+                <Textarea
+                  value={editedNotes}
+                  onChange={(e) => setEditedNotes(e.target.value)}
+                  onBlur={handleNotesBlur}
+                  placeholder="Add notes about this contact to help generate better AI messages..."
+                  className="min-h-[100px] resize-none"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Notes help the AI generate more personalized messages
+                </p>
+              </div>
+
+              {/* Social Profiles */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                  <MessageSquareText className="w-4 h-4" />
+                  <span>Social profiles</span>
+                </div>
+                <SocialUrlFields
+                  contact={localContact}
+                  visiblePlatforms={settings.visibleSocialPlatforms}
+                  onUpdate={handleSocialUpdate}
+                />
+              </div>
+
+              {/* Conversation Context Button */}
+              <Button
+                variant="outline"
+                className="w-full gap-2"
+                onClick={() => setShowConversationContextDialog(true)}
+              >
+                <MessageSquareText className="w-4 h-4" />
+                Add Conversation Context
+              </Button>
+
+              {/* Hide/Unhide Contact */}
+              {localContact.isHidden ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border border-border">
+                    <EyeOff className="w-4 h-4 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground flex-1">This contact is hidden from cadence</span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={async () => {
+                      await onUpdateContact(localContact.id, { isHidden: false });
+                      setLocalContact(prev => (prev ? { ...prev, isHidden: false } : null));
+                    }}
+                  >
+                    <Eye className="w-4 h-4" />
+                    Unhide Contact
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  className="w-full gap-2 text-muted-foreground"
+                  onClick={async () => {
+                    await onUpdateContact(localContact.id, { isHidden: true });
+                    setLocalContact(prev => (prev ? { ...prev, isHidden: true } : null));
+                  }}
+                >
+                  <EyeOff className="w-4 h-4" />
+                  Hide Contact
+                </Button>
+              )}
+
+              {/* Keep In Touch logo (always visible directly below Hide Contact) */}
+              <div className="flex items-center justify-center py-8">
+                <img
+                  src={keepInTouchLogo}
+                  alt="Keep In Touch logo"
+                  className="h-16 w-auto opacity-70"
+                  loading="lazy"
+                />
+              </div>
+
+              {/* Extra scroll room when the keyboard is open (mobile) */}
+              <div
+                aria-hidden="true"
+                className="pointer-events-none"
+                style={{
+                  height: 'max(var(--keyboard-height, 0px), var(--keyboard-inset, 0px))',
+                }}
+              />
+            </div>
           </div>
-        </div>
-      </DialogContent>
-    </Dialog>
+        </DialogContent>
+      </Dialog>
+
+      {/* Conversation Context Dialog */}
+      <ConversationContextDialog
+        open={showConversationContextDialog}
+        onOpenChange={setShowConversationContextDialog}
+        contactName={localContact.name}
+        initialContext={localContact.conversationContext || ''}
+        onSave={async (context) => {
+          await onUpdateContact(localContact.id, { conversationContext: context });
+          setLocalContact(prev => prev ? { ...prev, conversationContext: context } : null);
+        }}
+      />
+
+      {/* Send Text Dialog */}
+      <SendTextDialog
+        contact={localContact}
+        open={showSendTextDialog}
+        onOpenChange={setShowSendTextDialog}
+        onComplete={(contactId) => {
+          if (onMarkAsContacted) {
+            onMarkAsContacted(contactId);
+          }
+          setShowSendTextDialog(false);
+        }}
+      />
+    </>
   );
-}
+};

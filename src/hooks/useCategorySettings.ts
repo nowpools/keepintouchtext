@@ -1,27 +1,8 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { CategorySetting, DEFAULT_CATEGORIES } from '@/types/labelSettings';
 import { useToast } from '@/hooks/use-toast';
-
-export interface CategorySetting {
-  id: string;
-  user_id: string;
-  label_name: string;
-  description: string | null;
-  cadence_days: number;
-  is_default: boolean;
-  sort_order: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export const DEFAULT_CATEGORIES: Omit<CategorySetting, 'id' | 'user_id' | 'created_at' | 'updated_at'>[] = [
-  { label_name: 'Close Friends', description: 'Your inner circle', cadence_days: 7, is_default: true, sort_order: 0 },
-  { label_name: 'Friends', description: 'Good friends', cadence_days: 14, is_default: true, sort_order: 1 },
-  { label_name: 'Family', description: 'Family members', cadence_days: 30, is_default: true, sort_order: 2 },
-  { label_name: 'Colleagues', description: 'Work contacts', cadence_days: 30, is_default: true, sort_order: 3 },
-  { label_name: 'Acquaintances', description: 'Casual connections', cadence_days: 90, is_default: true, sort_order: 4 },
-];
 
 export function useCategorySettings() {
   const { user } = useAuth();
@@ -49,7 +30,7 @@ export function useCategorySettings() {
       if (!data || data.length === 0) {
         await initializeDefaults();
       } else {
-        setCategorySettings(data as unknown as CategorySetting[]);
+        setCategorySettings(data as CategorySetting[]);
       }
     } catch (error) {
       console.error('Error fetching category settings:', error);
@@ -74,11 +55,11 @@ export function useCategorySettings() {
 
       const { data, error } = await supabase
         .from('label_settings')
-        .insert(defaultsToInsert as any)
+        .insert(defaultsToInsert)
         .select();
 
       if (error) throw error;
-      setCategorySettings(data as unknown as CategorySetting[]);
+      setCategorySettings(data as CategorySetting[]);
     } catch (error) {
       console.error('Error initializing defaults:', error);
     }
@@ -88,7 +69,7 @@ export function useCategorySettings() {
     try {
       const { error } = await supabase
         .from('label_settings')
-        .update(updates as any)
+        .update(updates)
         .eq('id', id);
 
       if (error) throw error;
@@ -124,15 +105,14 @@ export function useCategorySettings() {
           cadence_days: cadenceDays,
           is_default: false,
           sort_order: maxSortOrder + 1,
-        } as any)
+        })
         .select()
         .single();
 
       if (error) throw error;
 
-      const newSetting = data as unknown as CategorySetting;
-      setCategorySettings((prev) => [...prev, newSetting]);
-      return newSetting;
+      setCategorySettings((prev) => [...prev, data as CategorySetting]);
+      return data as CategorySetting;
     } catch (error: any) {
       console.error('Error adding category setting:', error);
       if (error.code === '23505') {

@@ -1,9 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
+import { SortOrderType, SocialPlatform, SocialPlatformSettings, CadenceSettings } from '@/types/contact';
 
-export type SortOrderType = 'alphabetical' | 'random';
-export type SocialPlatform = 'linkedin' | 'x' | 'youtube' | 'facebook' | 'instagram' | 'tiktok' | 'github' | 'threads' | 'snapchat' | 'pinterest' | 'reddit' | 'discord' | 'twitch' | 'whatsapp' | 'telegram';
-export interface SocialPlatformSettings { linkedin: boolean; x: boolean; youtube: boolean; facebook: boolean; instagram: boolean; tiktok: boolean; github: boolean; threads: boolean; snapchat: boolean; pinterest: boolean; reddit: boolean; discord: boolean; twitch: boolean; whatsapp: boolean; telegram: boolean; }
-export interface CadenceSettings { daily: number; weekly: number; monthly: number; quarterly: number; 'twice-yearly': number; yearly: number; }
 const STORAGE_KEY = 'kitSettings';
 
 const DEFAULT_SOCIAL_PLATFORMS: SocialPlatformSettings = {

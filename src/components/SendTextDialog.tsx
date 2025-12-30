@@ -1,155 +1,208 @@
 import { useState, useEffect } from 'react';
+import { Contact } from '@/types/contact';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
-import { Sparkles, MessageSquare, Check, Loader2, RefreshCw } from 'lucide-react';
+import { 
+  MessageSquare, 
+  Check, 
+  Calendar,
+  Sparkles,
+  RefreshCw,
+  Phone,
+  Clock
+} from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { useAIMessage } from '@/hooks/useAIMessage';
-import type { ContactWithLinks } from '@/types/contacts';
-import { toast } from '@/hooks/use-toast';
 
 interface SendTextDialogProps {
+  contact: Contact | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  contact: ContactWithLinks;
-  phoneNumber: string;
-  onMarkContacted?: (contactId: string) => void;
-  isBirthday?: boolean;
+  onComplete: (contactId: string) => void;
+  showSnooze?: boolean;
+  onSnooze?: (contactId: string) => void;
 }
 
-export function SendTextDialog({
+export const SendTextDialog = ({
+  contact,
   open,
   onOpenChange,
-  contact,
-  phoneNumber,
-  onMarkContacted,
-  isBirthday = false,
-}: SendTextDialogProps) {
-  const [message, setMessage] = useState('');
+  onComplete,
+  showSnooze = false,
+  onSnooze,
+}: SendTextDialogProps) => {
+  const [draft, setDraft] = useState('');
   const { generateMessage, isGenerating } = useAIMessage();
 
-  // Auto-generate message when dialog opens
+  // Generate message when dialog opens
   useEffect(() => {
-    if (open && !message) {
-      handleGenerate();
+    if (open && contact) {
+      handleGenerateMessage();
+    } else if (!open) {
+      setDraft('');
     }
-  }, [open]);
+  }, [open, contact?.id]);
 
-  const handleGenerate = async () => {
-    const result = await generateMessage(
-      contact.display_name,
+  const handleGenerateMessage = async () => {
+    if (!contact) return;
+    
+    // Note: Social media scraping is not available via Firecrawl (403 blocked)
+    // AI uses notes and conversation context only
+    const message = await generateMessage(
+      contact.name,
       contact.notes,
-      contact.last_contacted ? new Date(contact.last_contacted) : null,
-      contact.linkedin_url,
-      contact.conversation_context,
-      contact.x_url,
-      contact.youtube_url,
-      isBirthday
+      contact.lastContacted,
+      undefined, // linkedinUrl - not scrapable
+      contact.conversationContext,
+      undefined, // xUrl - not scrapable
+      undefined  // youtubeUrl - not scrapable
     );
-    if (result) {
-      setMessage(result);
+    
+    if (message) {
+      setDraft(message);
     }
   };
 
-  const handleOpenInMessages = () => {
-    // Format phone number for SMS URL
-    const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
-    const encodedMessage = encodeURIComponent(message);
+  const handleOpeniMessage = () => {
+    if (!contact) return;
     
-    // Use sms: protocol with body parameter
-    // iOS uses &body= syntax
-    const smsUrl = `sms:${cleanPhone}&body=${encodedMessage}`;
+    const encodedMessage = encodeURIComponent(draft);
+    const phoneNumber = contact.phone.replace(/\D/g, '');
+    const iMessageUrl = `sms:${phoneNumber}&body=${encodedMessage}`;
+    window.open(iMessageUrl, '_blank');
     
-    window.location.href = smsUrl;
-    
-    // Mark as contacted
-    if (onMarkContacted) {
-      onMarkContacted(contact.id);
-    }
-    
-    toast({
-      title: 'Opening Messages',
-      description: 'Your message has been prepared',
-    });
-    
+    // Auto-mark as contacted
+    onComplete(contact.id);
     onOpenChange(false);
-    setMessage('');
   };
 
-  const handleMarkContacted = () => {
-    if (onMarkContacted) {
-      onMarkContacted(contact.id);
-    }
-    toast({
-      title: 'Marked as contacted',
-      description: `${contact.display_name} has been marked as contacted`,
-    });
-    onOpenChange(false);
-    setMessage('');
-  };
+  if (!contact) return null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="max-w-md top-[calc(env(safe-area-inset-top)+0.75rem)] translate-y-0 data-[state=open]:slide-in-from-top-2 flex max-h-[calc(100dvh-1.5rem)] flex-col overflow-hidden">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <MessageSquare className="w-5 h-5" />
-            {isBirthday ? `Birthday Message for ${contact.display_name}` : `Message ${contact.display_name}`}
-          </DialogTitle>
-        </DialogHeader>
-
-        <div className="space-y-4">
-          <div className="relative">
-            <Textarea
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder={isGenerating ? 'Generating message...' : 'Your message...'}
-              className="min-h-[120px] resize-none pr-10"
-              disabled={isGenerating}
-            />
-            {isGenerating && (
-              <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-md">
-                <Loader2 className="w-6 h-6 animate-spin text-primary" />
+          <div className="flex items-center gap-4">
+            {contact.photo ? (
+              <img 
+                src={contact.photo} 
+                alt={contact.name}
+                className="w-14 h-14 rounded-full object-cover ring-2 ring-border"
+              />
+            ) : (
+              <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                <span className="text-xl font-semibold text-primary">
+                  {contact.name.charAt(0)}
+                </span>
               </div>
             )}
+            <div>
+              <DialogTitle className="text-xl">{contact.name}</DialogTitle>
+              <div className="flex items-center gap-1.5 mt-1 text-sm text-muted-foreground">
+                <Phone className="w-4 h-4" />
+                <span>{contact.phone || 'No phone'}</span>
+              </div>
+            </div>
           </div>
+        </DialogHeader>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="gap-2"
-          >
-            <RefreshCw className={`w-4 h-4 ${isGenerating ? 'animate-spin' : ''}`} />
-            Regenerate
-          </Button>
+        {/* Scrollable content (stays above keyboard within viewport) */}
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+          <div className="space-y-4 mt-4 pb-4">
+            {/* Last Contacted */}
+            <div className="flex items-center gap-2 text-sm">
+              <Calendar className="w-4 h-4 text-muted-foreground" />
+              <span className="text-muted-foreground">Last contacted:</span>
+              <span className="font-medium">
+                {contact.lastContacted 
+                  ? formatDistanceToNow(contact.lastContacted, { addSuffix: true })
+                  : 'Never'}
+              </span>
+            </div>
+
+            {/* Notes preview */}
+            {contact.notes && (
+              <div className="p-3 bg-secondary/50 rounded-lg">
+                <p className="text-sm text-secondary-foreground leading-relaxed line-clamp-2">
+                  {contact.notes}
+                </p>
+              </div>
+            )}
+
+            {/* AI Draft */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                  <Sparkles className="w-4 h-4 text-primary" />
+                  <span>Suggested message</span>
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={handleGenerateMessage}
+                  disabled={isGenerating}
+                  className="h-7 text-xs"
+                >
+                  <RefreshCw className={`w-3 h-3 mr-1 ${isGenerating ? 'animate-spin' : ''}`} />
+                  {isGenerating ? 'Generating...' : 'Regenerate'}
+                </Button>
+              </div>
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                className="min-h-[100px] resize-none bg-card"
+                placeholder={isGenerating ? "Generating message..." : "Write your message..."}
+                disabled={isGenerating}
+              />
+            </div>
+          </div>
         </div>
 
-        <DialogFooter className="flex-col sm:flex-row gap-2">
-          <Button
-            variant="outline"
-            onClick={handleMarkContacted}
-            className="gap-2"
-          >
-            <Check className="w-4 h-4" />
-            Mark Contacted
-          </Button>
-          <Button
-            onClick={handleOpenInMessages}
-            disabled={!message.trim()}
-            className="gap-2"
-          >
-            <MessageSquare className="w-4 h-4" />
-            Open in Messages
-          </Button>
-        </DialogFooter>
+        {/* Fixed actions (always visible) */}
+        <div className="border-t border-border/60 pt-3 pb-[calc(env(safe-area-inset-bottom)+0.25rem)]">
+          <div className="flex gap-3">
+            <Button
+              variant="imessage"
+              className="flex-1"
+              onClick={handleOpeniMessage}
+              disabled={!draft || !contact.phone}
+            >
+              <MessageSquare className="w-4 h-4" />
+              Open in iMessage
+            </Button>
+            <Button
+              variant="success"
+              size="icon"
+              onClick={() => {
+                onComplete(contact.id);
+                onOpenChange(false);
+              }}
+              title="Mark as done"
+            >
+              <Check className="w-4 h-4" />
+            </Button>
+            {showSnooze && onSnooze && (
+              <Button
+                variant="warning"
+                size="icon"
+                onClick={() => {
+                  onSnooze(contact.id);
+                  onOpenChange(false);
+                }}
+                title="Snooze until tomorrow"
+              >
+                <Clock className="w-4 h-4" />
+              </Button>
+            )}
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
-}
+};

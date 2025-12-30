@@ -6,22 +6,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface GoogleContact {
-  resourceName: string;
-  etag: string;
-  names?: Array<{ displayName?: string; givenName?: string; familyName?: string }>;
-  phoneNumbers?: Array<{ value: string; type?: string }>;
-  emailAddresses?: Array<{ value: string; type?: string }>;
-  photos?: Array<{ url: string }>;
-  memberships?: Array<{ contactGroupMembership?: { contactGroupResourceName: string } }>;
-}
-
-interface SyncRequest {
-  userId: string;
-  accessToken: string;
-  syncToken?: string;
-}
-
 // Input validation
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -36,11 +20,13 @@ serve(async (req) => {
   }
 
   try {
-    const { userId, accessToken, syncToken } = await req.json() as SyncRequest;
+    const body = await req.json();
+    const accessToken = body.accessToken;
+    const userId = body.userId;
 
     // Validate required parameters
     if (!accessToken || typeof accessToken !== 'string') {
-      console.error('[sync-google-contacts] Missing or invalid accessToken');
+      console.error('Missing or invalid accessToken');
       return new Response(
         JSON.stringify({ error: 'Missing or invalid accessToken' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -48,194 +34,107 @@ serve(async (req) => {
     }
 
     if (!userId || !isValidUUID(userId)) {
-      console.error('[sync-google-contacts] Missing or invalid userId');
+      console.error('Missing or invalid userId:', { hasUserId: !!userId, isValid: userId ? isValidUUID(userId) : false });
       return new Response(
         JSON.stringify({ error: 'Missing or invalid userId' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    console.log(`[sync-google-contacts] Starting sync for user: ${userId}`);
+    console.log('Fetching Google Contacts for user:', userId);
 
     // Fetch contacts from Google People API
-    let url = 'https://people.googleapis.com/v1/people/me/connections?personFields=names,emailAddresses,phoneNumbers,photos,memberships&pageSize=1000';
-    if (syncToken) {
-      url += `&syncToken=${syncToken}`;
-    } else {
-      url += '&requestSyncToken=true';
-    }
-
-    const googleResponse = await fetch(url, {
-      headers: {
-        'Authorization': `Bearer ${accessToken}`,
-      },
-    });
+    const googleResponse = await fetch(
+      'https://people.googleapis.com/v1/people/me/connections?personFields=names,phoneNumbers,emailAddresses,photos,memberships&pageSize=1000',
+      {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      }
+    );
 
     if (!googleResponse.ok) {
       const errorText = await googleResponse.text();
-      console.error(`[sync-google-contacts] Google API error: ${errorText}`);
-      
-      // Check if token is expired
-      if (googleResponse.status === 401) {
-        return new Response(
-          JSON.stringify({ error: 'Google token expired', code: 'TOKEN_EXPIRED' }),
-          { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-      
+      console.error('Google API error:', googleResponse.status, errorText);
       return new Response(
-        JSON.stringify({ error: 'Failed to fetch Google contacts' }),
+        JSON.stringify({ error: 'Failed to fetch Google contacts', details: errorText }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     const googleData = await googleResponse.json();
-    const connections: GoogleContact[] = googleData.connections || [];
-    const nextSyncToken = googleData.nextSyncToken;
+    const connections = googleData.connections || [];
 
-    console.log(`[sync-google-contacts] Fetched ${connections.length} contacts from Google`);
+    console.log(`Found ${connections.length} Google contacts`);
 
-    // Initialize Supabase client with service role
+    // Initialize Supabase client with service role for database operations
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     let syncedCount = 0;
-    const now = new Date().toISOString();
 
-    for (const contact of connections) {
-      const googleId = contact.resourceName; // e.g., "people/c1234567890"
-      const etag = contact.etag;
-      
-      const displayName = contact.names?.[0]?.displayName || 'Unknown';
-      const givenName = contact.names?.[0]?.givenName || null;
-      const familyName = contact.names?.[0]?.familyName || null;
-      
-      // Format phones as JSON array
-      const phones = contact.phoneNumbers?.map(p => ({
-        value: p.value,
-        type: p.type || 'other',
-      })) || [];
-      
-      // Format emails as JSON array  
-      const emails = contact.emailAddresses?.map(e => ({
-        value: e.value,
-        type: e.type || 'other',
-      })) || [];
+    // Process each contact
+    for (const person of connections) {
+      const name = person.names?.[0]?.displayName;
+      if (!name) continue; // Skip contacts without names
 
-      // Skip contacts without meaningful data
-      if (displayName === 'Unknown' && phones.length === 0 && emails.length === 0) {
-        continue;
+      const googleId = person.resourceName;
+      const phone = person.phoneNumbers?.[0]?.value || null;
+      const email = person.emailAddresses?.[0]?.value || null;
+      const photo = person.photos?.[0]?.url || null;
+
+      // Extract labels from memberships (contact groups)
+      const labels: string[] = [];
+      if (person.memberships) {
+        for (const membership of person.memberships) {
+          if (membership.contactGroupMembership?.contactGroupResourceName) {
+            const groupName = membership.contactGroupMembership.contactGroupResourceName;
+            // Extract the last part of the resource name as label
+            const labelPart = groupName.split('/').pop();
+            if (labelPart && labelPart !== 'myContacts') {
+              labels.push(labelPart);
+            }
+          }
+        }
       }
 
-      try {
-        // Check if we already have a link for this Google contact
-        const { data: existingLink } = await supabase
-          .from('contact_links')
-          .select('id, app_contact_id, external_etag')
-          .eq('external_id', googleId)
-          .eq('source', 'google')
-          .single();
-
-        if (existingLink) {
-          // Update existing contact if etag changed
-          if (existingLink.external_etag !== etag) {
-            // Update app_contact
-            await supabase
-              .from('app_contacts')
-              .update({
-                display_name: displayName,
-                given_name: givenName,
-                family_name: familyName,
-                phones: phones,
-                emails: emails,
-                updated_at: now,
-              })
-              .eq('id', existingLink.app_contact_id);
-
-            // Update contact_link etag
-            await supabase
-              .from('contact_links')
-              .update({
-                external_etag: etag,
-                last_pulled_at: now,
-                updated_at: now,
-              })
-              .eq('id', existingLink.id);
-
-            console.log(`[sync-google-contacts] Updated contact: ${displayName}`);
+      // Upsert contact (update if exists, insert if new)
+      const { error } = await supabase
+        .from('contacts')
+        .upsert(
+          {
+            user_id: userId,
+            google_id: googleId,
+            name,
+            phone,
+            email,
+            photo,
+            labels,
+          },
+          {
+            onConflict: 'user_id,google_id',
           }
-        } else {
-          // Create new app_contact
-          const { data: newContact, error: insertError } = await supabase
-            .from('app_contacts')
-            .insert({
-              user_id: userId,
-              display_name: displayName,
-              given_name: givenName,
-              family_name: familyName,
-              phones: phones,
-              emails: emails,
-              source_preference: 'google',
-            })
-            .select('id')
-            .single();
+        );
 
-          if (insertError) {
-            console.error(`[sync-google-contacts] Error inserting contact: ${insertError.message}`);
-            continue;
-          }
-
-          // Create contact_link
-          const { error: linkError } = await supabase
-            .from('contact_links')
-            .insert({
-              app_contact_id: newContact.id,
-              source: 'google',
-              external_id: googleId,
-              external_etag: etag,
-              last_pulled_at: now,
-            });
-
-          if (linkError) {
-            console.error(`[sync-google-contacts] Error creating link: ${linkError.message}`);
-            continue;
-          }
-
-          console.log(`[sync-google-contacts] Created contact: ${displayName}`);
-        }
-
+      if (error) {
+        console.error('Error upserting contact:', error);
+      } else {
         syncedCount++;
-      } catch (e) {
-        console.error(`[sync-google-contacts] Error processing contact ${displayName}:`, e);
       }
     }
 
-    // Update user_integrations with new sync token and last sync time
-    await supabase
-      .from('user_integrations')
-      .update({
-        google_sync_token: nextSyncToken,
-        last_sync_google: now,
-        updated_at: now,
-      })
-      .eq('user_id', userId);
-
-    console.log(`[sync-google-contacts] Sync complete. Synced ${syncedCount} contacts.`);
+    console.log(`Successfully synced ${syncedCount} contacts`);
 
     return new Response(
-      JSON.stringify({ 
-        success: true, 
-        syncedCount,
-        nextSyncToken,
-      }),
+      JSON.stringify({ success: true, synced: syncedCount }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
-
   } catch (error) {
-    console.error('[sync-google-contacts] Error:', error);
+    console.error('Sync error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
     return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }),
+      JSON.stringify({ error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   }

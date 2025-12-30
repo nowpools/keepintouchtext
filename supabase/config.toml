@@ -14,6 +14,3 @@ verify_jwt = true
 
 [functions.create-google-contact]
 verify_jwt = true
-
-[functions.backfill-contact-schedule]
-verify_jwt = true
