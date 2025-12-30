@@ -55,40 +55,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setupCapacitorAuth();
 
     // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        setSession(session);
-        setUser(session?.user ?? null);
-        setIsLoading(false);
-        
-        // Store Google tokens when user signs in with Google
-        if (session?.user && session.provider_token) {
-          setTimeout(() => {
-            storeGoogleTokens(
-              session.user.id,
-              session.provider_token!,
-              session.provider_refresh_token
-            );
-          }, 0);
-        }
-      }
-    );
-
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
-      setIsLoading(false);
-      
-      // Store tokens if available on initial load
+
+      // Store Google tokens when user signs in with Google
       if (session?.user && session.provider_token) {
-        storeGoogleTokens(
-          session.user.id,
-          session.provider_token,
-          session.provider_refresh_token
-        );
+        setTimeout(() => {
+          storeGoogleTokens(session.user.id, session.provider_token!, session.provider_refresh_token);
+        }, 0);
       }
     });
+
+    const initialize = async () => {
+      try {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get('code');
+        const error = params.get('error');
+
+        // If we just returned from an OAuth provider (PKCE flow), exchange the code for a session
+        if (code && !error) {
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(window.location.href);
+
+          if (exchangeError) {
+            console.error('OAuth code exchange failed:', exchangeError);
+          } else {
+            setSession(data.session);
+            setUser(data.session?.user ?? null);
+          }
+
+          // Remove OAuth params from the URL (prevents loops + keeps URL clean)
+          params.delete('code');
+          params.delete('state');
+          const newSearch = params.toString();
+          const newUrl = `${window.location.pathname}${newSearch ? `?${newSearch}` : ''}${window.location.hash}`;
+          window.history.replaceState({}, document.title, newUrl);
+        } else {
+          // Normal startup: load any existing session
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+
+          setSession(session);
+          setUser(session?.user ?? null);
+
+          if (session?.user && session.provider_token) {
+            setTimeout(() => {
+              storeGoogleTokens(session.user.id, session.provider_token!, session.provider_refresh_token);
+            }, 0);
+          }
+        }
+      } catch (e) {
+        console.error('Auth initialization error:', e);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    initialize();
 
     return () => subscription.unsubscribe();
   }, []);
