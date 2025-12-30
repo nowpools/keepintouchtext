@@ -2,25 +2,48 @@ import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { EmptyState } from '@/components/EmptyState';
+import { ContactCard } from '@/components/ContactCard';
+import { ContactDetailDialog } from '@/components/ContactDetailDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppContacts } from '@/hooks/useAppContacts';
-import { useUserIntegrations } from '@/hooks/useUserIntegrations';
+import { useContactHistory } from '@/hooks/useContactHistory';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { format } from 'date-fns';
-import { Sparkles, RefreshCw, Users, Settings, Apple, Mail } from 'lucide-react';
+import { Sparkles, Users, Settings } from 'lucide-react';
+import { useState } from 'react';
+import type { ContactWithLinks } from '@/types/contacts';
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
-  const { contacts, isLoading, refetch } = useAppContacts();
-  const { integrations } = useUserIntegrations();
+  const { dueContacts, contacts, isLoading, updateContact, deleteContact, markContacted } = useAppContacts();
+  const { recordContactCompletion } = useContactHistory();
+  
+  const [selectedContact, setSelectedContact] = useState<ContactWithLinks | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
       navigate('/auth');
     }
   }, [user, authLoading, navigate]);
+
+  const handleMarkContacted = async (contactId: string) => {
+    const contact = contacts.find(c => c.id === contactId);
+    if (contact) {
+      await markContacted(contactId);
+      await recordContactCompletion(contact, 'manual');
+    }
+  };
+
+  const handleOpenDetail = (contact: ContactWithLinks) => {
+    setSelectedContact(contact);
+    setDetailOpen(true);
+  };
+
+  const handleSaveContact = async (id: string, updates: Partial<ContactWithLinks>) => {
+    return await updateContact(id, updates);
+  };
 
   if (authLoading) {
     return (
@@ -51,31 +74,21 @@ const Index = () => {
           </Button>
         </div>
 
-        {/* Sync Status */}
-        <div className="flex flex-wrap gap-2">
-          <Badge 
-            variant={integrations?.apple_sync_enabled ? "default" : "outline"} 
-            className="gap-1"
-          >
-            <Apple className="w-3 h-3" />
-            Apple: {integrations?.apple_sync_enabled ? 'Syncing' : 'Off'}
-          </Badge>
-          <Badge 
-            variant={integrations?.google_sync_enabled ? "default" : "outline"} 
-            className="gap-1"
-          >
-            <Mail className="w-3 h-3" />
-            Google: {integrations?.google_sync_enabled ? 'Syncing' : 'Off'}
-          </Badge>
-        </div>
-
         {/* Content */}
         {isLoading ? (
           <div className="space-y-4">
             {[1, 2, 3].map(i => (
-              <div 
-                key={i}
-                className="h-32 rounded-lg bg-secondary animate-pulse"
+              <div key={i} className="h-32 rounded-lg bg-secondary animate-pulse" />
+            ))}
+          </div>
+        ) : dueContacts.length > 0 ? (
+          <div className="space-y-3">
+            {dueContacts.map(contact => (
+              <ContactCard
+                key={contact.id}
+                contact={contact}
+                onMarkContacted={handleMarkContacted}
+                onOpenDetail={handleOpenDetail}
               />
             ))}
           </div>
@@ -85,33 +98,33 @@ const Index = () => {
             title="No contacts synced"
             description="Connect Apple Contacts or Google Contacts to start nurturing your relationships"
             action={
-              <div className="flex flex-col gap-2">
-                <Button onClick={() => navigate('/settings')} className="gap-2">
-                  <Settings className="w-4 h-4" />
-                  Configure Sync Settings
-                </Button>
-              </div>
+              <Button onClick={() => navigate('/settings')} className="gap-2">
+                <Settings className="w-4 h-4" />
+                Configure Sync Settings
+              </Button>
             }
           />
         ) : (
           <EmptyState
             icon={<Sparkles className="w-8 h-8 text-primary" />}
             title="All caught up!"
-            description={`You have ${contacts.length} contacts. The sync engine will show you who to contact based on your cadence settings.`}
+            description={`You have ${contacts.length} contacts. Assign categories to set contact cadences.`}
             action={
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => navigate('/contacts')}>
-                  View All Contacts
-                </Button>
-                <Button onClick={refetch} variant="outline" className="gap-2">
-                  <RefreshCw className="w-4 h-4" />
-                  Refresh
-                </Button>
-              </div>
+              <Button variant="outline" onClick={() => navigate('/contacts')}>
+                View All Contacts
+              </Button>
             }
           />
         )}
       </div>
+
+      <ContactDetailDialog
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
+        contact={selectedContact}
+        onSave={handleSaveContact}
+        onDelete={deleteContact}
+      />
     </Layout>
   );
 };

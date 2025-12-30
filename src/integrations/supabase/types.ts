@@ -16,6 +16,9 @@ export type Database = {
     Tables: {
       app_contacts: {
         Row: {
+          birthday: string | null
+          cadence_days: number | null
+          conversation_context: string | null
           created_at: string
           deleted_at: string | null
           display_name: string
@@ -23,6 +26,10 @@ export type Database = {
           family_name: string | null
           given_name: string | null
           id: string
+          label: string | null
+          last_contacted: string | null
+          linkedin_url: string | null
+          next_contact_date: string | null
           notes: string | null
           phones: Json | null
           source_preference:
@@ -31,8 +38,13 @@ export type Database = {
           tags: Json | null
           updated_at: string
           user_id: string
+          x_url: string | null
+          youtube_url: string | null
         }
         Insert: {
+          birthday?: string | null
+          cadence_days?: number | null
+          conversation_context?: string | null
           created_at?: string
           deleted_at?: string | null
           display_name: string
@@ -40,6 +52,10 @@ export type Database = {
           family_name?: string | null
           given_name?: string | null
           id?: string
+          label?: string | null
+          last_contacted?: string | null
+          linkedin_url?: string | null
+          next_contact_date?: string | null
           notes?: string | null
           phones?: Json | null
           source_preference?:
@@ -48,8 +64,13 @@ export type Database = {
           tags?: Json | null
           updated_at?: string
           user_id: string
+          x_url?: string | null
+          youtube_url?: string | null
         }
         Update: {
+          birthday?: string | null
+          cadence_days?: number | null
+          conversation_context?: string | null
           created_at?: string
           deleted_at?: string | null
           display_name?: string
@@ -57,6 +78,10 @@ export type Database = {
           family_name?: string | null
           given_name?: string | null
           id?: string
+          label?: string | null
+          last_contacted?: string | null
+          linkedin_url?: string | null
+          next_contact_date?: string | null
           notes?: string | null
           phones?: Json | null
           source_preference?:
@@ -65,6 +90,8 @@ export type Database = {
           tags?: Json | null
           updated_at?: string
           user_id?: string
+          x_url?: string | null
+          youtube_url?: string | null
         }
         Relationships: []
       }
