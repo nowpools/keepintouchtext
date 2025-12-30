@@ -77,7 +77,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         // If we just returned from an OAuth provider (PKCE flow), exchange the code for a session
         if (code && !error) {
-          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(window.location.href);
+          const { data, error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
 
           if (exchangeError) {
             console.error('OAuth code exchange failed:', exchangeError);
