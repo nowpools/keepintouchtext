@@ -52,6 +52,7 @@ const Index = () => {
   const canSyncToGoogle = tier === 'pro' || tier === 'business';
 
   useEffect(() => {
+    // Only redirect if we're done loading auth and there's no user
     if (!authLoading && !user) {
       navigate('/auth');
     }
