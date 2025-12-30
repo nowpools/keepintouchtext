@@ -38,6 +38,7 @@ const AppContent = () => {
           <Route path="/settings" element={<Settings />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/callback" element={<OAuthCallback />} />
+          <Route path="/oauth-callback" element={<OAuthCallback />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/support" element={<Support />} />
