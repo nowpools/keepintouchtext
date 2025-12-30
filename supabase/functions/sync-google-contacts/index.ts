@@ -72,62 +72,122 @@ serve(async (req) => {
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Fetch existing contact links for this user to check for duplicates
+    const { data: existingLinks } = await supabase
+      .from('contact_links')
+      .select('external_id, app_contact_id')
+      .eq('source', 'google');
+
+    const existingLinkMap = new Map(
+      (existingLinks || []).map(link => [link.external_id, link.app_contact_id])
+    );
+
     let syncedCount = 0;
+    let updatedCount = 0;
 
     // Process each contact
     for (const person of connections) {
-      const name = person.names?.[0]?.displayName;
-      if (!name) continue; // Skip contacts without names
+      const displayName = person.names?.[0]?.displayName;
+      if (!displayName) continue; // Skip contacts without names
 
       const googleId = person.resourceName;
-      const phone = person.phoneNumbers?.[0]?.value || null;
-      const email = person.emailAddresses?.[0]?.value || null;
-      const photo = person.photos?.[0]?.url || null;
+      const givenName = person.names?.[0]?.givenName || null;
+      const familyName = person.names?.[0]?.familyName || null;
+      
+      // Format phones as JSON array
+      const phones = person.phoneNumbers?.map((p: any) => ({
+        value: p.value,
+        type: p.type || 'other'
+      })) || null;
+      
+      // Format emails as JSON array
+      const emails = person.emailAddresses?.map((e: any) => ({
+        value: e.value,
+        type: e.type || 'other'
+      })) || null;
 
-      // Extract labels from memberships (contact groups)
-      const labels: string[] = [];
+      // Extract first label from memberships (contact groups)
+      let label: string | null = null;
       if (person.memberships) {
         for (const membership of person.memberships) {
           if (membership.contactGroupMembership?.contactGroupResourceName) {
             const groupName = membership.contactGroupMembership.contactGroupResourceName;
-            // Extract the last part of the resource name as label
             const labelPart = groupName.split('/').pop();
             if (labelPart && labelPart !== 'myContacts') {
-              labels.push(labelPart);
+              label = labelPart;
+              break;
             }
           }
         }
       }
 
-      // Upsert contact (update if exists, insert if new)
-      const { error } = await supabase
-        .from('contacts')
-        .upsert(
-          {
-            user_id: userId,
-            google_id: googleId,
-            name,
-            phone,
-            email,
-            photo,
-            labels,
-          },
-          {
-            onConflict: 'user_id,google_id',
-          }
-        );
+      // Check if this Google contact already exists
+      const existingAppContactId = existingLinkMap.get(googleId);
 
-      if (error) {
-        console.error('Error upserting contact:', error);
+      if (existingAppContactId) {
+        // Update existing contact
+        const { error: updateError } = await supabase
+          .from('app_contacts')
+          .update({
+            display_name: displayName,
+            given_name: givenName,
+            family_name: familyName,
+            phones,
+            emails,
+            label,
+            updated_at: new Date().toISOString(),
+          })
+          .eq('id', existingAppContactId);
+
+        if (updateError) {
+          console.error('Error updating contact:', updateError);
+        } else {
+          updatedCount++;
+        }
       } else {
-        syncedCount++;
+        // Create new contact
+        const { data: newContact, error: insertError } = await supabase
+          .from('app_contacts')
+          .insert({
+            user_id: userId,
+            display_name: displayName,
+            given_name: givenName,
+            family_name: familyName,
+            phones,
+            emails,
+            label,
+            source_preference: 'google',
+          })
+          .select('id')
+          .single();
+
+        if (insertError) {
+          console.error('Error inserting contact:', insertError);
+        } else if (newContact) {
+          // Create contact link
+          const { error: linkError } = await supabase
+            .from('contact_links')
+            .insert({
+              app_contact_id: newContact.id,
+              external_id: googleId,
+              source: 'google',
+              sync_enabled: true,
+              last_pulled_at: new Date().toISOString(),
+            });
+
+          if (linkError) {
+            console.error('Error creating contact link:', linkError);
+          } else {
+            syncedCount++;
+          }
+        }
       }
     }
 
-    console.log(`Successfully synced ${syncedCount} contacts`);
+    console.log(`Successfully synced ${syncedCount} new contacts, updated ${updatedCount} existing`);
 
     return new Response(
-      JSON.stringify({ success: true, synced: syncedCount }),
+      JSON.stringify({ success: true, synced: syncedCount, updated: updatedCount }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
     );
   } catch (error) {

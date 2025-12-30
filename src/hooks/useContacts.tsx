@@ -3,49 +3,49 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { Contact, CadenceType } from '@/types/contact';
 import { toast } from '@/hooks/use-toast';
+import type { Tables } from '@/integrations/supabase/types';
 
-interface DbContact {
-  id: string;
-  user_id: string;
-  google_id: string | null;
-  name: string;
-  phone: string | null;
-  email: string | null;
-  photo: string | null;
-  labels: string[];
-  notes: string;
-  linkedin_url: string | null;
-  x_url: string | null;
-  youtube_url: string | null;
-  instagram_url: string | null;
-  tiktok_url: string | null;
-  facebook_url: string | null;
-  github_url: string | null;
-  threads_url: string | null;
-  snapchat_url: string | null;
-  pinterest_url: string | null;
-  reddit_url: string | null;
-  discord_url: string | null;
-  twitch_url: string | null;
-  whatsapp_url: string | null;
-  telegram_url: string | null;
-  conversation_context: string | null;
-  cadence: string;
-  last_contacted: string | null;
-  next_due: string | null;
-  ai_draft: string | null;
-  follow_up_override: string | null;
-  is_hidden: boolean;
-  birthday_month: number | null;
-  birthday_day: number | null;
-  birthday_year: number | null;
-  created_at: string;
-  updated_at: string;
+type DbContact = Tables<'app_contacts'>;
+type DbContactLink = Tables<'contact_links'>;
+
+interface PhoneEntry {
+  value: string;
+  type?: string;
+}
+
+interface EmailEntry {
+  value: string;
+  type?: string;
+}
+
+// Map cadence_days to CadenceType
+function cadenceDaysToType(days: number | null): CadenceType {
+  if (days === null) return 'monthly';
+  if (days <= 1) return 'daily';
+  if (days <= 7) return 'weekly';
+  if (days <= 30) return 'monthly';
+  if (days <= 90) return 'quarterly';
+  if (days <= 180) return 'twice-yearly';
+  return 'yearly';
+}
+
+// Map CadenceType to days
+function cadenceTypeToDays(type: CadenceType): number {
+  switch (type) {
+    case 'daily': return 1;
+    case 'weekly': return 7;
+    case 'monthly': return 30;
+    case 'quarterly': return 90;
+    case 'twice-yearly': return 180;
+    case 'yearly': return 365;
+    default: return 30;
+  }
 }
 
 export function useContacts() {
   const { user, session } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
+  const [contactLinks, setContactLinks] = useState<Map<string, DbContactLink>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -57,49 +57,71 @@ export function useContacts() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('contacts')
+      // Fetch contacts
+      const { data: contactsData, error: contactsError } = await supabase
+        .from('app_contacts')
         .select('*')
         .eq('user_id', user.id)
-        .order('name');
+        .is('deleted_at', null)
+        .order('display_name');
 
-      if (error) throw error;
+      if (contactsError) throw contactsError;
 
-      const mappedContacts: Contact[] = (data as DbContact[] || []).map(c => ({
-        id: c.id,
-        name: c.name,
-        phone: c.phone || '',
-        email: c.email || undefined,
-        photo: c.photo || undefined,
-        googleId: c.google_id || undefined,
-        labels: c.labels || [],
-        notes: c.notes || '',
-        linkedinUrl: c.linkedin_url || undefined,
-        xUrl: c.x_url || undefined,
-        youtubeUrl: c.youtube_url || undefined,
-        instagramUrl: c.instagram_url || undefined,
-        tiktokUrl: c.tiktok_url || undefined,
-        facebookUrl: c.facebook_url || undefined,
-        githubUrl: c.github_url || undefined,
-        threadsUrl: c.threads_url || undefined,
-        snapchatUrl: c.snapchat_url || undefined,
-        pinterestUrl: c.pinterest_url || undefined,
-        redditUrl: c.reddit_url || undefined,
-        discordUrl: c.discord_url || undefined,
-        twitchUrl: c.twitch_url || undefined,
-        whatsappUrl: c.whatsapp_url || undefined,
-        telegramUrl: c.telegram_url || undefined,
-        conversationContext: c.conversation_context || undefined,
-        cadence: (c.cadence || 'monthly') as CadenceType,
-        lastContacted: c.last_contacted ? new Date(c.last_contacted) : null,
-        nextDue: c.next_due ? new Date(c.next_due) : new Date(),
-        aiDraft: c.ai_draft || undefined,
-        followUpOverride: c.follow_up_override ? new Date(c.follow_up_override) : null,
-        isHidden: c.is_hidden || false,
-        birthdayMonth: c.birthday_month,
-        birthdayDay: c.birthday_day,
-        birthdayYear: c.birthday_year,
-      }));
+      // Fetch contact links for Google sync info
+      const contactIds = (contactsData || []).map(c => c.id);
+      const { data: linksData } = await supabase
+        .from('contact_links')
+        .select('*')
+        .in('app_contact_id', contactIds)
+        .eq('source', 'google');
+
+      const linksMap = new Map<string, DbContactLink>();
+      (linksData || []).forEach(link => {
+        linksMap.set(link.app_contact_id, link);
+      });
+      setContactLinks(linksMap);
+
+      const mappedContacts: Contact[] = (contactsData || []).map(c => {
+        const phones = (c.phones as unknown) as PhoneEntry[] | null;
+        const emails = (c.emails as unknown) as EmailEntry[] | null;
+        const link = linksMap.get(c.id);
+
+        return {
+          id: c.id,
+          name: c.display_name,
+          phone: phones?.[0]?.value || '',
+          email: emails?.[0]?.value || undefined,
+          photo: undefined, // Photos not stored in app_contacts
+          googleId: link?.external_id || undefined,
+          labels: c.label ? [c.label] : [],
+          notes: c.notes || '',
+          linkedinUrl: c.linkedin_url || undefined,
+          xUrl: c.x_url || undefined,
+          youtubeUrl: c.youtube_url || undefined,
+          instagramUrl: undefined,
+          tiktokUrl: undefined,
+          facebookUrl: undefined,
+          githubUrl: undefined,
+          threadsUrl: undefined,
+          snapchatUrl: undefined,
+          pinterestUrl: undefined,
+          redditUrl: undefined,
+          discordUrl: undefined,
+          twitchUrl: undefined,
+          whatsappUrl: undefined,
+          telegramUrl: undefined,
+          conversationContext: c.conversation_context || undefined,
+          cadence: cadenceDaysToType(c.cadence_days),
+          lastContacted: c.last_contacted ? new Date(c.last_contacted) : null,
+          nextDue: c.next_contact_date ? new Date(c.next_contact_date) : new Date(),
+          aiDraft: undefined,
+          followUpOverride: null,
+          isHidden: false,
+          birthdayMonth: c.birthday ? parseInt(c.birthday.split('-')[1]) : null,
+          birthdayDay: c.birthday ? parseInt(c.birthday.split('-')[2]) : null,
+          birthdayYear: c.birthday ? parseInt(c.birthday.split('-')[0]) : null,
+        };
+      });
 
       setContacts(mappedContacts);
     } catch (error) {
@@ -139,9 +161,12 @@ export function useContacts() {
 
       if (error) throw error;
 
+      const synced = data?.synced || 0;
+      const updated = data?.updated || 0;
+      
       toast({
         title: 'Contacts synced!',
-        description: `${data?.synced || 0} contacts imported from Google`,
+        description: `${synced} new contacts imported, ${updated} updated`,
       });
 
       await fetchContacts();
@@ -162,39 +187,42 @@ export function useContacts() {
 
     try {
       const dbUpdates: Record<string, unknown> = {};
-      if (updates.phone !== undefined) dbUpdates.phone = updates.phone || null;
-      if (updates.cadence !== undefined) dbUpdates.cadence = updates.cadence;
+      
+      if (updates.phone !== undefined) {
+        dbUpdates.phones = updates.phone ? [{ value: updates.phone, type: 'mobile' }] : null;
+      }
+      if (updates.cadence !== undefined) {
+        dbUpdates.cadence_days = cadenceTypeToDays(updates.cadence);
+      }
       if (updates.notes !== undefined) dbUpdates.notes = updates.notes;
       if (updates.linkedinUrl !== undefined) dbUpdates.linkedin_url = updates.linkedinUrl;
       if (updates.xUrl !== undefined) dbUpdates.x_url = updates.xUrl;
       if (updates.youtubeUrl !== undefined) dbUpdates.youtube_url = updates.youtubeUrl;
-      if (updates.instagramUrl !== undefined) dbUpdates.instagram_url = updates.instagramUrl;
-      if (updates.tiktokUrl !== undefined) dbUpdates.tiktok_url = updates.tiktokUrl;
-      if (updates.facebookUrl !== undefined) dbUpdates.facebook_url = updates.facebookUrl;
-      if (updates.githubUrl !== undefined) dbUpdates.github_url = updates.githubUrl;
-      if (updates.threadsUrl !== undefined) dbUpdates.threads_url = updates.threadsUrl;
-      if (updates.snapchatUrl !== undefined) dbUpdates.snapchat_url = updates.snapchatUrl;
-      if (updates.pinterestUrl !== undefined) dbUpdates.pinterest_url = updates.pinterestUrl;
-      if (updates.redditUrl !== undefined) dbUpdates.reddit_url = updates.redditUrl;
-      if (updates.discordUrl !== undefined) dbUpdates.discord_url = updates.discordUrl;
-      if (updates.twitchUrl !== undefined) dbUpdates.twitch_url = updates.twitchUrl;
-      if (updates.whatsappUrl !== undefined) dbUpdates.whatsapp_url = updates.whatsappUrl;
-      if (updates.telegramUrl !== undefined) dbUpdates.telegram_url = updates.telegramUrl;
       if (updates.conversationContext !== undefined) dbUpdates.conversation_context = updates.conversationContext;
-      if (updates.labels !== undefined) dbUpdates.labels = updates.labels;
+      if (updates.labels !== undefined) dbUpdates.label = updates.labels[0] || null;
       if (updates.lastContacted !== undefined) {
         dbUpdates.last_contacted = updates.lastContacted?.toISOString() || null;
       }
-      if (updates.followUpOverride !== undefined) {
-        dbUpdates.follow_up_override = updates.followUpOverride?.toISOString() || null;
+      
+      // Handle birthday
+      if (updates.birthdayMonth !== undefined || updates.birthdayDay !== undefined || updates.birthdayYear !== undefined) {
+        const existingContact = contacts.find(c => c.id === contactId);
+        const month = updates.birthdayMonth ?? existingContact?.birthdayMonth;
+        const day = updates.birthdayDay ?? existingContact?.birthdayDay;
+        const year = updates.birthdayYear ?? existingContact?.birthdayYear;
+        
+        if (month && day) {
+          const yearStr = year ? String(year).padStart(4, '0') : '0000';
+          const monthStr = String(month).padStart(2, '0');
+          const dayStr = String(day).padStart(2, '0');
+          dbUpdates.birthday = `${yearStr}-${monthStr}-${dayStr}`;
+        } else {
+          dbUpdates.birthday = null;
+        }
       }
-      if (updates.isHidden !== undefined) dbUpdates.is_hidden = updates.isHidden;
-      if (updates.birthdayMonth !== undefined) dbUpdates.birthday_month = updates.birthdayMonth;
-      if (updates.birthdayDay !== undefined) dbUpdates.birthday_day = updates.birthdayDay;
-      if (updates.birthdayYear !== undefined) dbUpdates.birthday_year = updates.birthdayYear;
 
       const { error } = await supabase
-        .from('contacts')
+        .from('app_contacts')
         .update(dbUpdates)
         .eq('id', contactId)
         .eq('user_id', user.id);
@@ -259,11 +287,12 @@ export function useContacts() {
 
   const getContactGoogleId = async (contactId: string): Promise<string | null> => {
     const { data } = await supabase
-      .from('contacts')
-      .select('google_id')
-      .eq('id', contactId)
+      .from('contact_links')
+      .select('external_id')
+      .eq('app_contact_id', contactId)
+      .eq('source', 'google')
       .single();
-    return data?.google_id || null;
+    return data?.external_id || null;
   };
 
   return {
