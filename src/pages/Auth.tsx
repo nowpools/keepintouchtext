@@ -1,11 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Sparkles, Calendar, MessageSquare, Loader2 } from 'lucide-react';
+import { Sparkles, Calendar, MessageSquare, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { STRIPE_PRICES, type BillingInterval } from '@/config/stripe';
@@ -14,13 +14,35 @@ import appIcon from '@/assets/app-icon.png';
 const isIOS = Capacitor.getPlatform() === 'ios';
 
 const Auth = () => {
-  const { user, isLoading, signInWithGoogle, signInWithApple } = useAuth();
+  const { user, isLoading, signInWithGoogle, signInWithApple, signOut } = useAuth();
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
 
   const planFromUrl = searchParams.get('plan');
   const billingFromUrl = (searchParams.get('billing') || 'yearly') as BillingInterval;
+
+  // Detect OAuth errors in URL
+  const oauthError = useMemo(() => {
+    const error = searchParams.get('error');
+    const errorDescription = searchParams.get('error_description');
+    if (error) {
+      return { error, description: errorDescription || 'Authentication failed. Please try again.' };
+    }
+    return null;
+  }, [searchParams]);
+
+  const handleClearAndRetry = async () => {
+    // Clear any stale session
+    await signOut();
+    // Remove error params from URL
+    const newParams = new URLSearchParams(searchParams);
+    newParams.delete('error');
+    newParams.delete('error_description');
+    newParams.delete('code');
+    newParams.delete('state');
+    setSearchParams(newParams, { replace: true });
+  };
 
   useEffect(() => {
     const handlePostLoginCheckout = async () => {
@@ -115,6 +137,31 @@ const Auth = () => {
             Never lose touch with the people who matter most
           </p>
         </div>
+
+        {/* OAuth Error Alert */}
+        {oauthError && (
+          <Card className="w-full max-w-md mb-4 border-destructive/50 bg-destructive/5 animate-fade-in">
+            <CardContent className="pt-6">
+              <div className="flex items-start gap-3">
+                <AlertTriangle className="w-5 h-5 text-destructive shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="font-medium text-destructive">Sign in failed</p>
+                  <p className="text-sm text-muted-foreground mt-1">{oauthError.description}</p>
+                  <p className="text-xs text-muted-foreground mt-2">Error: {oauthError.error}</p>
+                </div>
+              </div>
+              <Button 
+                onClick={handleClearAndRetry}
+                variant="outline" 
+                size="sm" 
+                className="w-full mt-4 gap-2"
+              >
+                <RefreshCw className="w-4 h-4" />
+                Clear & Retry
+              </Button>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Sign In Card */}
         <Card className="w-full max-w-md animate-fade-in" style={{ animationDelay: '100ms' }}>
