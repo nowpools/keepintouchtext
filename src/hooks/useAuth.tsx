@@ -18,6 +18,8 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // Store Google tokens when we have them from OAuth
 async function storeGoogleTokens(userId: string, providerToken: string, providerRefreshToken?: string) {
   try {
+    console.log('Storing Google tokens for user:', userId);
+    
     const updates: Record<string, unknown> = {
       google_access_token: providerToken,
       google_token_expiry: new Date(Date.now() + 3600 * 1000).toISOString(), // 1 hour from now
@@ -28,12 +30,16 @@ async function storeGoogleTokens(userId: string, providerToken: string, provider
       updates.google_refresh_token = providerRefreshToken;
     }
 
-    await supabase
+    const { error } = await supabase
       .from('user_integrations')
       .update(updates)
       .eq('user_id', userId);
-      
-    console.log('Google tokens stored successfully');
+    
+    if (error) {
+      console.error('Failed to store Google tokens:', error);
+    } else {
+      console.log('Google tokens stored successfully');
+    }
   } catch (error) {
     console.error('Failed to store Google tokens:', error);
   }
