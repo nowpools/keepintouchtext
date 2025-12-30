@@ -14,205 +14,106 @@ export type Database = {
   }
   public: {
     Tables: {
-      contact_history: {
+      app_contacts: {
         Row: {
-          cadence: string | null
-          contact_id: string
-          contact_name: string
-          contacted_at: string
           created_at: string
+          deleted_at: string | null
+          display_name: string
+          emails: Json | null
+          family_name: string | null
+          given_name: string | null
           id: string
-          label: string | null
           notes: string | null
-          reason: string | null
+          phones: Json | null
+          source_preference:
+            | Database["public"]["Enums"]["contact_source"]
+            | null
+          tags: Json | null
+          updated_at: string
           user_id: string
         }
         Insert: {
-          cadence?: string | null
-          contact_id: string
-          contact_name: string
-          contacted_at?: string
           created_at?: string
+          deleted_at?: string | null
+          display_name: string
+          emails?: Json | null
+          family_name?: string | null
+          given_name?: string | null
           id?: string
-          label?: string | null
           notes?: string | null
-          reason?: string | null
+          phones?: Json | null
+          source_preference?:
+            | Database["public"]["Enums"]["contact_source"]
+            | null
+          tags?: Json | null
+          updated_at?: string
           user_id: string
         }
         Update: {
-          cadence?: string | null
-          contact_id?: string
-          contact_name?: string
-          contacted_at?: string
           created_at?: string
+          deleted_at?: string | null
+          display_name?: string
+          emails?: Json | null
+          family_name?: string | null
+          given_name?: string | null
           id?: string
-          label?: string | null
           notes?: string | null
-          reason?: string | null
+          phones?: Json | null
+          source_preference?:
+            | Database["public"]["Enums"]["contact_source"]
+            | null
+          tags?: Json | null
+          updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      contact_links: {
+        Row: {
+          app_contact_id: string
+          created_at: string
+          external_etag: string | null
+          external_id: string
+          id: string
+          last_pulled_at: string | null
+          last_pushed_at: string | null
+          source: Database["public"]["Enums"]["contact_source"]
+          sync_enabled: boolean
+          updated_at: string
+        }
+        Insert: {
+          app_contact_id: string
+          created_at?: string
+          external_etag?: string | null
+          external_id: string
+          id?: string
+          last_pulled_at?: string | null
+          last_pushed_at?: string | null
+          source: Database["public"]["Enums"]["contact_source"]
+          sync_enabled?: boolean
+          updated_at?: string
+        }
+        Update: {
+          app_contact_id?: string
+          created_at?: string
+          external_etag?: string | null
+          external_id?: string
+          id?: string
+          last_pulled_at?: string | null
+          last_pushed_at?: string | null
+          source?: Database["public"]["Enums"]["contact_source"]
+          sync_enabled?: boolean
+          updated_at?: string
         }
         Relationships: [
           {
-            foreignKeyName: "contact_history_contact_id_fkey"
-            columns: ["contact_id"]
+            foreignKeyName: "contact_links_app_contact_id_fkey"
+            columns: ["app_contact_id"]
             isOneToOne: false
-            referencedRelation: "contacts"
+            referencedRelation: "app_contacts"
             referencedColumns: ["id"]
           },
         ]
-      }
-      contacts: {
-        Row: {
-          ai_draft: string | null
-          birthday_day: number | null
-          birthday_month: number | null
-          birthday_year: number | null
-          cadence: string | null
-          conversation_context: string | null
-          created_at: string
-          discord_url: string | null
-          email: string | null
-          facebook_url: string | null
-          follow_up_override: string | null
-          github_url: string | null
-          google_id: string | null
-          id: string
-          instagram_url: string | null
-          is_hidden: boolean
-          labels: string[] | null
-          last_contacted: string | null
-          linkedin_url: string | null
-          name: string
-          next_due: string | null
-          notes: string | null
-          phone: string | null
-          photo: string | null
-          pinterest_url: string | null
-          reddit_url: string | null
-          snapchat_url: string | null
-          telegram_url: string | null
-          threads_url: string | null
-          tiktok_url: string | null
-          twitch_url: string | null
-          updated_at: string
-          user_id: string
-          whatsapp_url: string | null
-          x_url: string | null
-          youtube_url: string | null
-        }
-        Insert: {
-          ai_draft?: string | null
-          birthday_day?: number | null
-          birthday_month?: number | null
-          birthday_year?: number | null
-          cadence?: string | null
-          conversation_context?: string | null
-          created_at?: string
-          discord_url?: string | null
-          email?: string | null
-          facebook_url?: string | null
-          follow_up_override?: string | null
-          github_url?: string | null
-          google_id?: string | null
-          id?: string
-          instagram_url?: string | null
-          is_hidden?: boolean
-          labels?: string[] | null
-          last_contacted?: string | null
-          linkedin_url?: string | null
-          name: string
-          next_due?: string | null
-          notes?: string | null
-          phone?: string | null
-          photo?: string | null
-          pinterest_url?: string | null
-          reddit_url?: string | null
-          snapchat_url?: string | null
-          telegram_url?: string | null
-          threads_url?: string | null
-          tiktok_url?: string | null
-          twitch_url?: string | null
-          updated_at?: string
-          user_id: string
-          whatsapp_url?: string | null
-          x_url?: string | null
-          youtube_url?: string | null
-        }
-        Update: {
-          ai_draft?: string | null
-          birthday_day?: number | null
-          birthday_month?: number | null
-          birthday_year?: number | null
-          cadence?: string | null
-          conversation_context?: string | null
-          created_at?: string
-          discord_url?: string | null
-          email?: string | null
-          facebook_url?: string | null
-          follow_up_override?: string | null
-          github_url?: string | null
-          google_id?: string | null
-          id?: string
-          instagram_url?: string | null
-          is_hidden?: boolean
-          labels?: string[] | null
-          last_contacted?: string | null
-          linkedin_url?: string | null
-          name?: string
-          next_due?: string | null
-          notes?: string | null
-          phone?: string | null
-          photo?: string | null
-          pinterest_url?: string | null
-          reddit_url?: string | null
-          snapchat_url?: string | null
-          telegram_url?: string | null
-          threads_url?: string | null
-          tiktok_url?: string | null
-          twitch_url?: string | null
-          updated_at?: string
-          user_id?: string
-          whatsapp_url?: string | null
-          x_url?: string | null
-          youtube_url?: string | null
-        }
-        Relationships: []
-      }
-      label_settings: {
-        Row: {
-          cadence_days: number
-          created_at: string
-          description: string | null
-          id: string
-          is_default: boolean
-          label_name: string
-          sort_order: number
-          updated_at: string
-          user_id: string
-        }
-        Insert: {
-          cadence_days?: number
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_default?: boolean
-          label_name: string
-          sort_order?: number
-          updated_at?: string
-          user_id: string
-        }
-        Update: {
-          cadence_days?: number
-          created_at?: string
-          description?: string | null
-          id?: string
-          is_default?: boolean
-          label_name?: string
-          sort_order?: number
-          updated_at?: string
-          user_id?: string
-        }
-        Relationships: []
       }
       subscriptions: {
         Row: {
@@ -262,6 +163,158 @@ export type Database = {
         }
         Relationships: []
       }
+      sync_queue: {
+        Row: {
+          app_contact_id: string | null
+          created_at: string
+          direction: Database["public"]["Enums"]["sync_direction"]
+          error: string | null
+          external_id: string | null
+          id: string
+          payload: Json | null
+          source: Database["public"]["Enums"]["contact_source"]
+          status: Database["public"]["Enums"]["sync_status"]
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          app_contact_id?: string | null
+          created_at?: string
+          direction: Database["public"]["Enums"]["sync_direction"]
+          error?: string | null
+          external_id?: string | null
+          id?: string
+          payload?: Json | null
+          source: Database["public"]["Enums"]["contact_source"]
+          status?: Database["public"]["Enums"]["sync_status"]
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          app_contact_id?: string | null
+          created_at?: string
+          direction?: Database["public"]["Enums"]["sync_direction"]
+          error?: string | null
+          external_id?: string | null
+          id?: string
+          payload?: Json | null
+          source?: Database["public"]["Enums"]["contact_source"]
+          status?: Database["public"]["Enums"]["sync_status"]
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_queue_app_contact_id_fkey"
+            columns: ["app_contact_id"]
+            isOneToOne: false
+            referencedRelation: "app_contacts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_integrations: {
+        Row: {
+          apple_contacts_permission:
+            | Database["public"]["Enums"]["contacts_permission"]
+            | null
+          apple_sync_enabled: boolean
+          apple_visible: boolean
+          conflict_preference:
+            | Database["public"]["Enums"]["conflict_resolution_preference"]
+            | null
+          created_at: string
+          google_access_token: string | null
+          google_refresh_token: string | null
+          google_sync_enabled: boolean
+          google_sync_token: string | null
+          google_token_expiry: string | null
+          google_visible: boolean
+          id: string
+          last_sync_apple: string | null
+          last_sync_google: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          apple_contacts_permission?:
+            | Database["public"]["Enums"]["contacts_permission"]
+            | null
+          apple_sync_enabled?: boolean
+          apple_visible?: boolean
+          conflict_preference?:
+            | Database["public"]["Enums"]["conflict_resolution_preference"]
+            | null
+          created_at?: string
+          google_access_token?: string | null
+          google_refresh_token?: string | null
+          google_sync_enabled?: boolean
+          google_sync_token?: string | null
+          google_token_expiry?: string | null
+          google_visible?: boolean
+          id?: string
+          last_sync_apple?: string | null
+          last_sync_google?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          apple_contacts_permission?:
+            | Database["public"]["Enums"]["contacts_permission"]
+            | null
+          apple_sync_enabled?: boolean
+          apple_visible?: boolean
+          conflict_preference?:
+            | Database["public"]["Enums"]["conflict_resolution_preference"]
+            | null
+          created_at?: string
+          google_access_token?: string | null
+          google_refresh_token?: string | null
+          google_sync_enabled?: boolean
+          google_sync_token?: string | null
+          google_token_expiry?: string | null
+          google_visible?: boolean
+          id?: string
+          last_sync_apple?: string | null
+          last_sync_google?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_profiles: {
+        Row: {
+          apple_sub: string | null
+          created_at: string
+          email: string | null
+          google_sub: string | null
+          id: string
+          name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          apple_sub?: string | null
+          created_at?: string
+          email?: string | null
+          google_sub?: string | null
+          id?: string
+          name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          apple_sub?: string | null
+          created_at?: string
+          email?: string | null
+          google_sub?: string | null
+          id?: string
+          name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_streaks: {
         Row: {
           created_at: string
@@ -303,7 +356,12 @@ export type Database = {
       }
     }
     Enums: {
+      conflict_resolution_preference: "apple" | "google" | "ask"
+      contact_source: "apple" | "google" | "app"
+      contacts_permission: "unknown" | "granted" | "denied"
       subscription_tier: "free" | "pro" | "business"
+      sync_direction: "pull" | "push"
+      sync_status: "pending" | "processing" | "success" | "failed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -431,7 +489,12 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      conflict_resolution_preference: ["apple", "google", "ask"],
+      contact_source: ["apple", "google", "app"],
+      contacts_permission: ["unknown", "granted", "denied"],
       subscription_tier: ["free", "pro", "business"],
+      sync_direction: ["pull", "push"],
+      sync_status: ["pending", "processing", "success", "failed"],
     },
   },
 } as const
