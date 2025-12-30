@@ -1,15 +1,15 @@
 import { useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
-import { Contact, ContactSurfaceReason } from '@/types/contact';
 import { toast } from '@/hooks/use-toast';
+import type { AppContact } from '@/types/contacts';
 
 export function useContactHistory() {
   const { user } = useAuth();
 
   const recordContactCompletion = useCallback(async (
-    contact: Contact,
-    reason: ContactSurfaceReason = 'cadence'
+    contact: AppContact,
+    reason: string = 'cadence'
   ) => {
     if (!user) return;
 
@@ -19,13 +19,13 @@ export function useContactHistory() {
         .insert({
           user_id: user.id,
           contact_id: contact.id,
-          contact_name: contact.name,
-          label: contact.labels[0] || null,
+          contact_name: contact.display_name,
+          label: contact.tags[0] || null,
           notes: contact.notes || null,
-          cadence: contact.cadence,
+          cadence: null,
           reason,
           contacted_at: new Date().toISOString(),
-        });
+        } as any);
 
       if (error) throw error;
     } catch (err) {
@@ -54,19 +54,18 @@ export function useContactHistory() {
       }
 
       // Generate CSV
-      const headers = ['Contact Name', 'Relationship Label', 'Date Contacted', 'Notes', 'Cadence', 'Reason'];
-      const rows = data.map(record => [
-        record.contact_name,
+      const headers = ['Contact Name', 'Label', 'Date Contacted', 'Notes', 'Reason'];
+      const rows = (data as any[]).map(record => [
+        record.contact_name || '',
         record.label || '',
         new Date(record.contacted_at).toLocaleDateString(),
-        (record.notes || '').replace(/"/g, '""'), // Escape quotes
-        record.cadence || '',
+        (record.notes || '').replace(/"/g, '""'),
         record.reason || 'cadence',
       ]);
 
       const csvContent = [
         headers.join(','),
-        ...rows.map(row => row.map(cell => `"${cell}"`).join(','))
+        ...rows.map(row => row.map((cell: string) => `"${cell}"`).join(','))
       ].join('\n');
 
       // Download file

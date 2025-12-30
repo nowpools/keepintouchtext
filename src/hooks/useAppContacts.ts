@@ -47,18 +47,27 @@ export function useAppContacts() {
           .in('app_contact_id', contactIds);
 
         if (linksError) throw linksError;
-        linksData = (links || []) as ContactLink[];
+        linksData = (links || []) as unknown as ContactLink[];
       }
 
       // Combine contacts with their links
       const contactsWithLinks: ContactWithLinks[] = (contactsData || []).map(contact => {
+        const rawContact = contact as unknown as Record<string, unknown>;
         const contactLinks = linksData.filter(l => l.app_contact_id === contact.id);
         return {
-          ...contact,
-          emails: (contact.emails as NormalizedEmail[]) || [],
-          phones: (contact.phones as NormalizedPhone[]) || [],
-          tags: (contact.tags as string[]) || [],
-          source_preference: contact.source_preference as ContactSource,
+          id: rawContact.id as string,
+          user_id: rawContact.user_id as string,
+          display_name: rawContact.display_name as string,
+          given_name: rawContact.given_name as string | undefined,
+          family_name: rawContact.family_name as string | undefined,
+          emails: (rawContact.emails as NormalizedEmail[]) || [],
+          phones: (rawContact.phones as NormalizedPhone[]) || [],
+          notes: rawContact.notes as string | undefined,
+          tags: (rawContact.tags as string[]) || [],
+          source_preference: rawContact.source_preference as ContactSource,
+          created_at: rawContact.created_at as string,
+          updated_at: rawContact.updated_at as string,
+          deleted_at: rawContact.deleted_at as string | null | undefined,
           links: contactLinks,
           hasAppleLink: contactLinks.some(l => l.source === 'apple'),
           hasGoogleLink: contactLinks.some(l => l.source === 'google'),
@@ -118,19 +127,28 @@ export function useAppContacts() {
     if (!user) return null;
 
     try {
+      const insertData = {
+        user_id: user.id,
+        display_name: contactData.display_name,
+        given_name: contactData.given_name,
+        family_name: contactData.family_name,
+        emails: contactData.emails as unknown as Record<string, unknown>[],
+        phones: contactData.phones as unknown as Record<string, unknown>[],
+        notes: contactData.notes,
+        tags: contactData.tags,
+        source_preference: contactData.source_preference,
+      };
+      
       const { data, error: insertError } = await supabase
         .from('app_contacts')
-        .insert({
-          user_id: user.id,
-          ...contactData,
-        })
+        .insert([insertData] as any)
         .select()
         .single();
 
       if (insertError) throw insertError;
 
       await fetchContacts();
-      return data as AppContact;
+      return data as unknown as AppContact;
     } catch (e) {
       console.error('[useAppContacts] Create error:', e);
       setError(e instanceof Error ? e.message : 'Failed to create contact');
@@ -145,9 +163,21 @@ export function useAppContacts() {
     if (!user) return false;
 
     try {
+      // Convert to plain object for Supabase
+      const updateData: Record<string, unknown> = {};
+      if (updates.display_name !== undefined) updateData.display_name = updates.display_name;
+      if (updates.given_name !== undefined) updateData.given_name = updates.given_name;
+      if (updates.family_name !== undefined) updateData.family_name = updates.family_name;
+      if (updates.emails !== undefined) updateData.emails = updates.emails;
+      if (updates.phones !== undefined) updateData.phones = updates.phones;
+      if (updates.notes !== undefined) updateData.notes = updates.notes;
+      if (updates.tags !== undefined) updateData.tags = updates.tags;
+      if (updates.source_preference !== undefined) updateData.source_preference = updates.source_preference;
+      if (updates.deleted_at !== undefined) updateData.deleted_at = updates.deleted_at;
+
       const { error: updateError } = await supabase
         .from('app_contacts')
-        .update(updates)
+        .update(updateData)
         .eq('id', id)
         .eq('user_id', user.id);
 

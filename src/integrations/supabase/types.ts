@@ -68,6 +68,45 @@ export type Database = {
         }
         Relationships: []
       }
+      contact_history: {
+        Row: {
+          cadence: string | null
+          contact_id: string
+          contact_name: string
+          contacted_at: string
+          created_at: string
+          id: string
+          label: string | null
+          notes: string | null
+          reason: string | null
+          user_id: string
+        }
+        Insert: {
+          cadence?: string | null
+          contact_id: string
+          contact_name: string
+          contacted_at?: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          reason?: string | null
+          user_id: string
+        }
+        Update: {
+          cadence?: string | null
+          contact_id?: string
+          contact_name?: string
+          contacted_at?: string
+          created_at?: string
+          id?: string
+          label?: string | null
+          notes?: string | null
+          reason?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       contact_links: {
         Row: {
           app_contact_id: string
@@ -114,6 +153,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      label_settings: {
+        Row: {
+          cadence_days: number
+          created_at: string
+          description: string | null
+          id: string
+          is_default: boolean
+          label_name: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cadence_days?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          label_name: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cadence_days?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_default?: boolean
+          label_name?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       subscriptions: {
         Row: {
