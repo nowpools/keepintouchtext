@@ -23,11 +23,13 @@ import {
   CheckCircle2,
   XCircle,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserIntegrations } from '@/hooks/useUserIntegrations';
 import { useAppleContacts } from '@/hooks/useAppleContacts';
+import { useGoogleSync } from '@/hooks/useGoogleSync';
 import { Capacitor } from '@capacitor/core';
 import type { ConflictResolutionPreference } from '@/types/contacts';
 
@@ -52,6 +54,13 @@ const Settings = () => {
     requestPermission: requestApplePermission,
     checkPermission: checkApplePermission,
   } = useAppleContacts();
+  const {
+    isConnected: googleConnected,
+    isConnecting: googleConnecting,
+    isSyncing: googleSyncing,
+    connectGoogle,
+    syncContacts: syncGoogleContacts,
+  } = useGoogleSync();
 
   const isIOS = Capacitor.getPlatform() === 'ios';
 
@@ -239,7 +248,7 @@ const Settings = () => {
                     Sync with your Google account
                   </p>
                 </div>
-                {integrations?.google_access_token && (
+                {googleConnected && (
                   <Badge variant="default" className="gap-1 bg-green-500">
                     <CheckCircle2 className="w-3 h-3" />
                     Connected
@@ -248,48 +257,78 @@ const Settings = () => {
               </div>
 
               <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <RefreshCw className="w-4 h-4 text-muted-foreground" />
-                    <Label>Sync Enabled</Label>
-                  </div>
-                  <Switch
-                    checked={integrations?.google_sync_enabled || false}
-                    onCheckedChange={setGoogleSyncEnabled}
-                    disabled={!integrations?.google_access_token}
-                  />
-                </div>
-
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {integrations?.google_visible ? (
-                      <Eye className="w-4 h-4 text-muted-foreground" />
-                    ) : (
-                      <EyeOff className="w-4 h-4 text-muted-foreground" />
-                    )}
-                    <Label>Show in Contacts List</Label>
-                  </div>
-                  <Switch
-                    checked={integrations?.google_visible || false}
-                    onCheckedChange={setGoogleVisible}
-                  />
-                </div>
-
-                {integrations?.google_access_token && (
+                {!googleConnected ? (
                   <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleDisconnectGoogle}
-                    className="text-destructive hover:text-destructive"
+                    onClick={connectGoogle}
+                    disabled={googleConnecting}
+                    className="gap-2"
                   >
-                    Disconnect Google
+                    {googleConnecting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Mail className="w-4 h-4" />
+                    )}
+                    Connect Google Contacts
                   </Button>
-                )}
+                ) : (
+                  <>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <RefreshCw className="w-4 h-4 text-muted-foreground" />
+                        <Label>Sync Enabled</Label>
+                      </div>
+                      <Switch
+                        checked={integrations?.google_sync_enabled || false}
+                        onCheckedChange={setGoogleSyncEnabled}
+                      />
+                    </div>
 
-                {integrations?.last_sync_google && (
-                  <p className="text-xs text-muted-foreground">
-                    Last synced: {new Date(integrations.last_sync_google).toLocaleString()}
-                  </p>
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        {integrations?.google_visible ? (
+                          <Eye className="w-4 h-4 text-muted-foreground" />
+                        ) : (
+                          <EyeOff className="w-4 h-4 text-muted-foreground" />
+                        )}
+                        <Label>Show in Contacts List</Label>
+                      </div>
+                      <Switch
+                        checked={integrations?.google_visible || false}
+                        onCheckedChange={setGoogleVisible}
+                      />
+                    </div>
+
+                    <div className="flex gap-2">
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={syncGoogleContacts}
+                        disabled={googleSyncing}
+                        className="gap-2"
+                      >
+                        {googleSyncing ? (
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <RefreshCw className="w-4 h-4" />
+                        )}
+                        Sync Now
+                      </Button>
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        onClick={handleDisconnectGoogle}
+                        className="text-destructive hover:text-destructive"
+                      >
+                        Disconnect
+                      </Button>
+                    </div>
+
+                    {integrations?.last_sync_google && (
+                      <p className="text-xs text-muted-foreground">
+                        Last synced: {new Date(integrations.last_sync_google).toLocaleString()}
+                      </p>
+                    )}
+                  </>
                 )}
               </div>
             </div>
