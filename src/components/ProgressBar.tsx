@@ -17,7 +17,7 @@ export const ProgressBar = ({ completed, total, className }: ProgressBarProps) =
           {isComplete ? (
             <span className="text-success">All done for today! 🎉</span>
           ) : (
-            <span className="text-muted-foreground">Daily Progress</span>
+            <span className="text-muted-foreground">Reminder Progress</span>
           )}
         </span>
         <span className={cn(
