@@ -109,18 +109,17 @@ serve(async (req) => {
 
     // Save to local database
     const { data: newContact, error: insertError } = await supabase
-      .from('contacts')
+      .from('app_contacts')
       .insert({
         user_id: userId,
-        google_id: googleId,
-        name: name,
-        phone: phone || null,
-        email: email || null,
+        display_name: name,
+        phones: phone ? [{ value: phone }] : [],
+        emails: email ? [{ value: email }] : [],
         notes: notes || '',
-        labels: [],
-        cadence: 'monthly',
+        label: null,
+        cadence_days: 30,
         last_contacted: null,
-        next_due: new Date().toISOString(),
+        next_contact_date: new Date().toISOString(),
       })
       .select()
       .single();
@@ -131,6 +130,21 @@ serve(async (req) => {
     }
 
     console.log('Contact saved to database:', newContact.id);
+
+    // Create contact link to associate with Google Contact
+    const { error: linkError } = await supabase
+      .from('contact_links')
+      .insert({
+        app_contact_id: newContact.id,
+        external_id: googleId,
+        source: 'google',
+        last_pulled_at: new Date().toISOString(),
+      });
+
+    if (linkError) {
+      console.error('Contact link insert error:', linkError);
+      // Don't throw - contact was created, just linking failed
+    }
 
     return new Response(
       JSON.stringify({ 
