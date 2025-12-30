@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { ContactCard } from '@/components/ContactCard';
 import { ProgressBar } from '@/components/ProgressBar';
@@ -15,7 +15,7 @@ import { useStreak } from '@/hooks/useStreak';
 import { useContactHistory } from '@/hooks/useContactHistory';
 import { DailyContact, Contact, ContactSurfaceReason } from '@/types/contact';
 import { format, differenceInDays, isSameDay } from 'date-fns';
-import { Sparkles, RefreshCw, Cloud, Cake, Calendar, CalendarClock } from 'lucide-react';
+import { Sparkles, RefreshCw, Cloud, Cake, Calendar, CalendarClock, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -36,6 +36,7 @@ const isBirthdayToday = (contact: Contact): boolean => {
 
 const Index = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
   const { contacts, isLoading, isSyncing, syncGoogleContacts, markAsContacted, updateContact, updateContactWithGoogleSync } = useContacts();
   const { categorySettings } = useCategorySettings();
@@ -47,16 +48,35 @@ const Index = () => {
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set());
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null);
+  const [oauthSettleTimeout, setOauthSettleTimeout] = useState(false);
+
+  // Detect if we're in OAuth callback (code/state params present)
+  const hasOAuthParams = searchParams.has('code') || searchParams.has('state');
 
   // Pro/Business users can sync to Google
   const canSyncToGoogle = tier === 'pro' || tier === 'business';
 
+  // Set a timeout to allow OAuth to settle before redirecting
   useEffect(() => {
+    if (hasOAuthParams && !user && !oauthSettleTimeout) {
+      const timer = setTimeout(() => {
+        setOauthSettleTimeout(true);
+      }, 8000); // Give 8 seconds for OAuth to complete
+      return () => clearTimeout(timer);
+    }
+  }, [hasOAuthParams, user, oauthSettleTimeout]);
+
+  useEffect(() => {
+    // If OAuth params are present, wait for session OR timeout before redirecting
+    if (hasOAuthParams && !user && !oauthSettleTimeout) {
+      return; // Don't redirect yet, still waiting for OAuth to settle
+    }
+    
     // Only redirect if we're done loading auth and there's no user
     if (!authLoading && !user) {
       navigate('/auth');
     }
-  }, [user, authLoading, navigate]);
+  }, [user, authLoading, navigate, hasOAuthParams, oauthSettleTimeout]);
 
   // Build a map of category name to cadence days
   const categoryCadenceMap = useMemo(() => {
@@ -266,6 +286,19 @@ const Index = () => {
 
   const completedCount = todaysContacts.filter(c => c.isCompleted).length;
   const activeContacts = todaysContacts.filter(c => !c.isSnoozed);
+
+  // Show "Finishing sign-in" gate when OAuth is in progress
+  if (hasOAuthParams && !user && !oauthSettleTimeout) {
+    return (
+      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
+        <Loader2 className="w-8 h-8 animate-spin text-primary" />
+        <div className="text-muted-foreground text-center">
+          <p>Finishing sign-in...</p>
+          <p className="text-xs text-muted-foreground/70 mt-2">This may take a few seconds</p>
+        </div>
+      </div>
+    );
+  }
 
   if (authLoading || !settingsLoaded) {
     return (

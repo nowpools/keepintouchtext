@@ -13,6 +13,8 @@ interface AuthContextType {
   signOut: () => Promise<void>;
 }
 
+// Export session for debug panel
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 // Store Google tokens when we have them from OAuth

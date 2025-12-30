@@ -4,8 +4,9 @@ import { Capacitor } from '@capacitor/core';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Sparkles, Calendar, MessageSquare, Loader2, AlertTriangle, RefreshCw } from 'lucide-react';
+import { Sparkles, Calendar, MessageSquare, Loader2, AlertTriangle, RefreshCw, ChevronDown, Bug } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { STRIPE_PRICES, type BillingInterval } from '@/config/stripe';
@@ -14,13 +15,38 @@ import appIcon from '@/assets/app-icon.png';
 const isIOS = Capacitor.getPlatform() === 'ios';
 
 const Auth = () => {
-  const { user, isLoading, signInWithGoogle, signInWithApple, signOut } = useAuth();
+  const { user, session, isLoading, signInWithGoogle, signInWithApple, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
+  const [debugOpen, setDebugOpen] = useState(false);
+  const [storageWritable, setStorageWritable] = useState<boolean | null>(null);
+  const [authTokenExists, setAuthTokenExists] = useState<boolean | null>(null);
 
   const planFromUrl = searchParams.get('plan');
   const billingFromUrl = (searchParams.get('billing') || 'yearly') as BillingInterval;
+
+  // Check storage writability and auth token on mount
+  useEffect(() => {
+    // Test localStorage writability
+    try {
+      const testKey = '__auth_test__';
+      localStorage.setItem(testKey, 'test');
+      localStorage.removeItem(testKey);
+      setStorageWritable(true);
+    } catch {
+      setStorageWritable(false);
+    }
+
+    // Check if auth token exists in storage
+    try {
+      const keys = Object.keys(localStorage);
+      const hasAuthKey = keys.some(k => k.includes('supabase') && k.includes('auth'));
+      setAuthTokenExists(hasAuthKey);
+    } catch {
+      setAuthTokenExists(false);
+    }
+  }, [user, session]);
 
   // Detect OAuth errors in URL
   const oauthError = useMemo(() => {
@@ -31,6 +57,10 @@ const Auth = () => {
     }
     return null;
   }, [searchParams]);
+
+  // Detect OAuth callback params
+  const hasCodeParam = searchParams.has('code');
+  const hasStateParam = searchParams.has('state');
 
   const handleClearAndRetry = async () => {
     // Clear any stale session
@@ -162,6 +192,59 @@ const Auth = () => {
             </CardContent>
           </Card>
         )}
+
+        {/* Auth Debug Panel */}
+        <Collapsible open={debugOpen} onOpenChange={setDebugOpen} className="w-full max-w-md mb-4">
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full gap-2 text-xs text-muted-foreground hover:text-foreground">
+              <Bug className="w-3 h-3" />
+              Auth Debug
+              <ChevronDown className={`w-3 h-3 transition-transform ${debugOpen ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent>
+            <Card className="mt-2 border-dashed">
+              <CardContent className="pt-4 text-xs space-y-2 font-mono">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">authLoading:</span>
+                  <span className={isLoading ? 'text-yellow-500' : 'text-green-500'}>{String(isLoading)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">user present:</span>
+                  <span className={user ? 'text-green-500' : 'text-red-500'}>{user ? 'yes' : 'no'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">session present:</span>
+                  <span className={session ? 'text-green-500' : 'text-red-500'}>{session ? 'yes' : 'no'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">localStorage writable:</span>
+                  <span className={storageWritable ? 'text-green-500' : storageWritable === false ? 'text-red-500' : 'text-muted-foreground'}>
+                    {storageWritable === null ? 'checking...' : String(storageWritable)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">auth token in storage:</span>
+                  <span className={authTokenExists ? 'text-green-500' : authTokenExists === false ? 'text-yellow-500' : 'text-muted-foreground'}>
+                    {authTokenExists === null ? 'checking...' : String(authTokenExists)}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">code param:</span>
+                  <span>{hasCodeParam ? 'present' : 'none'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">state param:</span>
+                  <span>{hasStateParam ? 'present' : 'none'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">error param:</span>
+                  <span className={oauthError ? 'text-red-500' : ''}>{oauthError?.error || 'none'}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* Sign In Card */}
         <Card className="w-full max-w-md animate-fade-in" style={{ animationDelay: '100ms' }}>
