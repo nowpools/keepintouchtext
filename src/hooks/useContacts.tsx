@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
 import { Contact, CadenceType } from '@/types/contact';
@@ -60,17 +61,37 @@ export function useContacts() {
     }
 
     try {
-      // Validate session before making request
-      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
-      console.log('[Contacts] Session check:', {
-        hasSession: !!currentSession,
-        sessionError: sessionError?.message,
-        sessionUserId: currentSession?.user?.id,
-        expectedUserId: user.id
-      });
+      // On native platforms, add delay to ensure session is fully established after OAuth
+      if (Capacitor.isNativePlatform()) {
+        console.log('[Contacts] Native platform detected, waiting for session to settle...');
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+
+      // Validate session with retry logic for native platforms
+      let currentSession = null;
+      let retries = 0;
+      const maxRetries = Capacitor.isNativePlatform() ? 3 : 1;
+
+      while (!currentSession && retries < maxRetries) {
+        const { data: { session: fetchedSession }, error: sessionError } = await supabase.auth.getSession();
+        currentSession = fetchedSession;
+        
+        console.log('[Contacts] Session check (attempt', retries + 1, '):', {
+          hasSession: !!currentSession,
+          sessionError: sessionError?.message,
+          sessionUserId: currentSession?.user?.id,
+          expectedUserId: user.id
+        });
+
+        if (!currentSession && retries < maxRetries - 1) {
+          console.log(`[Contacts] No session, retry ${retries + 1}/${maxRetries} in 1s...`);
+          await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+        retries++;
+      }
 
       if (!currentSession) {
-        console.warn('[Contacts] No valid session, cannot fetch contacts');
+        console.warn('[Contacts] No valid session after', maxRetries, 'attempts, cannot fetch contacts');
         setIsLoading(false);
         return;
       }
