@@ -285,9 +285,9 @@ const Index = () => {
             <p className="text-sm text-muted-foreground">
               {format(new Date(), 'EEEE, MMMM d')}
             </p>
-            <h1 className="text-3xl font-bold">Today's Connections</h1>
+            <h1 className="text-3xl font-bold">Today's Reminders</h1>
             <p className="text-muted-foreground">
-              People who'd love to hear from you today
+              Scheduled follow-ups, birthdays, and check-ins
             </p>
           </div>
           
