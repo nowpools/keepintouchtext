@@ -140,7 +140,7 @@ export const setupCapacitorAuth = () => {
 
 export const signInWithGoogleNative = async () => {
   // Redirect back to a https URL (required), which will then deep-link into the app.
-  const redirectUrl = 'https://keepintouchtext.com/callback';
+  const redirectUrl = 'https://964d240f-c90b-41c9-9988-8a8968fb6ab0.lovableproject.com/callback';
 
   const { data, error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
