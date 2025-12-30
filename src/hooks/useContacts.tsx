@@ -50,13 +50,33 @@ export function useContacts() {
   const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchContacts = useCallback(async () => {
+    console.log('[Contacts] fetchContacts called, user:', user?.id || 'no user');
+    
     if (!user) {
+      console.log('[Contacts] No user, clearing contacts');
       setContacts([]);
       setIsLoading(false);
       return;
     }
 
     try {
+      // Validate session before making request
+      const { data: { session: currentSession }, error: sessionError } = await supabase.auth.getSession();
+      console.log('[Contacts] Session check:', {
+        hasSession: !!currentSession,
+        sessionError: sessionError?.message,
+        sessionUserId: currentSession?.user?.id,
+        expectedUserId: user.id
+      });
+
+      if (!currentSession) {
+        console.warn('[Contacts] No valid session, cannot fetch contacts');
+        setIsLoading(false);
+        return;
+      }
+
+      console.log('[Contacts] Fetching contacts for user:', user.id);
+      
       // Fetch contacts
       const { data: contactsData, error: contactsError } = await supabase
         .from('app_contacts')
@@ -65,15 +85,28 @@ export function useContacts() {
         .is('deleted_at', null)
         .order('display_name');
 
+      console.log('[Contacts] Query result:', {
+        count: contactsData?.length ?? 0,
+        error: contactsError?.message,
+        errorCode: contactsError?.code,
+        errorDetails: contactsError?.details
+      });
+
       if (contactsError) throw contactsError;
 
       // Fetch contact links for Google sync info
       const contactIds = (contactsData || []).map(c => c.id);
-      const { data: linksData } = await supabase
+      console.log('[Contacts] Fetching links for', contactIds.length, 'contacts');
+      
+      const { data: linksData, error: linksError } = await supabase
         .from('contact_links')
         .select('*')
         .in('app_contact_id', contactIds)
         .eq('source', 'google');
+
+      if (linksError) {
+        console.warn('[Contacts] Links query error:', linksError.message);
+      }
 
       const linksMap = new Map<string, DbContactLink>();
       (linksData || []).forEach(link => {
@@ -91,7 +124,7 @@ export function useContacts() {
           name: c.display_name,
           phone: phones?.[0]?.value || '',
           email: emails?.[0]?.value || undefined,
-          photo: undefined, // Photos not stored in app_contacts
+          photo: undefined,
           googleId: link?.external_id || undefined,
           labels: c.label ? [c.label] : [],
           notes: c.notes || '',
@@ -123,12 +156,14 @@ export function useContacts() {
         };
       });
 
+      console.log('[Contacts] Successfully mapped', mappedContacts.length, 'contacts');
       setContacts(mappedContacts);
     } catch (error) {
-      console.error('Error fetching contacts:', error);
+      console.error('[Contacts] Error fetching contacts:', error);
+      console.error('[Contacts] Error details:', JSON.stringify(error, null, 2));
       toast({
         title: 'Error loading contacts',
-        description: 'Please try again later',
+        description: error instanceof Error ? error.message : 'Please try again later',
         variant: 'destructive',
       });
     } finally {
