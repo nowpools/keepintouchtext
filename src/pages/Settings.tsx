@@ -24,12 +24,15 @@ import {
   XCircle,
   AlertCircle,
   Loader2,
+  Wrench,
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserIntegrations } from '@/hooks/useUserIntegrations';
 import { useAppleContacts } from '@/hooks/useAppleContacts';
 import { useGoogleSync } from '@/hooks/useGoogleSync';
+import { useAppContacts } from '@/hooks/useAppContacts';
+import { supabase } from '@/integrations/supabase/client';
 import { Capacitor } from '@capacitor/core';
 import type { ConflictResolutionPreference } from '@/types/contacts';
 
@@ -61,8 +64,36 @@ const Settings = () => {
     connectGoogle,
     syncContacts: syncGoogleContacts,
   } = useGoogleSync();
+  const { refetch: refetchContacts } = useAppContacts();
+
+  const [isRepairing, setIsRepairing] = useState(false);
 
   const isIOS = Capacitor.getPlatform() === 'ios';
+
+  const handleRepairSchedule = async () => {
+    setIsRepairing(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('backfill-contact-schedule');
+      
+      if (error) throw error;
+      
+      await refetchContacts();
+      
+      toast({
+        title: 'Schedule initialized',
+        description: data?.message || 'Contact schedules have been set up',
+      });
+    } catch (e) {
+      console.error('[Settings] Repair error:', e);
+      toast({
+        title: 'Repair failed',
+        description: e instanceof Error ? e.message : 'Failed to initialize schedules',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsRepairing(false);
+    }
+  };
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -362,6 +393,40 @@ const Settings = () => {
                   <SelectItem value="google">Prefer Google Contacts</SelectItem>
                 </SelectContent>
               </Select>
+            </div>
+          </div>
+        </Card>
+
+        {/* Data Maintenance */}
+        <Card className="p-6 animate-fade-in" style={{ animationDelay: '125ms' }}>
+          <div className="flex items-start gap-4">
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Wrench className="w-5 h-5 text-primary" />
+            </div>
+            <div className="flex-1 space-y-4">
+              <div>
+                <h3 className="font-semibold">Data Maintenance</h3>
+                <p className="text-sm text-muted-foreground">
+                  Initialize or repair contact schedules
+                </p>
+              </div>
+
+              <Button 
+                variant="outline" 
+                onClick={handleRepairSchedule}
+                disabled={isRepairing}
+                className="gap-2"
+              >
+                {isRepairing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Wrench className="w-4 h-4" />
+                )}
+                Initialize Contact Schedules
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Sets default cadence (30 days) for contacts without schedules
+              </p>
             </div>
           </div>
         </Card>

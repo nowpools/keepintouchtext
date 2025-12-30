@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { EmptyState } from '@/components/EmptyState';
@@ -7,10 +7,10 @@ import { ContactDetailDialog } from '@/components/ContactDetailDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppContacts } from '@/hooks/useAppContacts';
 import { useContactHistory } from '@/hooks/useContactHistory';
+import { useAppSettings } from '@/hooks/useAppSettings';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
 import { Sparkles, Users, Settings } from 'lucide-react';
-import { useState } from 'react';
 import type { ContactWithLinks } from '@/types/contacts';
 
 const Index = () => {
@@ -18,9 +18,16 @@ const Index = () => {
   const { user, isLoading: authLoading } = useAuth();
   const { dueContacts, contacts, isLoading, updateContact, deleteContact, markContacted } = useAppContacts();
   const { recordContactCompletion } = useContactHistory();
+  const { settings } = useAppSettings();
   
   const [selectedContact, setSelectedContact] = useState<ContactWithLinks | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+
+  // Apply maxDailyContacts cap
+  const cappedDueContacts = useMemo(() => {
+    if (settings.maxDailyContacts === null) return dueContacts;
+    return dueContacts.slice(0, settings.maxDailyContacts);
+  }, [dueContacts, settings.maxDailyContacts]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -81,9 +88,14 @@ const Index = () => {
               <div key={i} className="h-32 rounded-lg bg-secondary animate-pulse" />
             ))}
           </div>
-        ) : dueContacts.length > 0 ? (
+        ) : cappedDueContacts.length > 0 ? (
           <div className="space-y-3">
-            {dueContacts.map(contact => (
+            {dueContacts.length > cappedDueContacts.length && (
+              <p className="text-sm text-muted-foreground">
+                Showing {cappedDueContacts.length} of {dueContacts.length} contacts due today
+              </p>
+            )}
+            {cappedDueContacts.map(contact => (
               <ContactCard
                 key={contact.id}
                 contact={contact}

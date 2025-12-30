@@ -1,16 +1,25 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Layout } from '@/components/Layout';
 import { EmptyState } from '@/components/EmptyState';
+import { ContactDetailDialog } from '@/components/ContactDetailDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useAppContacts } from '@/hooks/useAppContacts';
 import { useUserIntegrations } from '@/hooks/useUserIntegrations';
+import { useCategorySettings } from '@/hooks/useCategorySettings';
 import { ContactWithLinks } from '@/types/contacts';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   Dialog,
   DialogContent,
@@ -26,19 +35,22 @@ import {
   Mail, 
   Phone,
   Settings as SettingsIcon,
+  Filter,
 } from 'lucide-react';
-import { useEffect } from 'react';
 
 const Contacts = () => {
   const navigate = useNavigate();
   const { user, isLoading: authLoading } = useAuth();
   const { contacts, isLoading, refetch, createContact, updateContact, deleteContact } = useAppContacts();
   const { integrations } = useUserIntegrations();
+  const { categorySettings } = useCategorySettings();
   
   const [searchQuery, setSearchQuery] = useState('');
   const [showApple, setShowApple] = useState(true);
   const [showGoogle, setShowGoogle] = useState(true);
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [selectedContact, setSelectedContact] = useState<ContactWithLinks | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const [showAddDialog, setShowAddDialog] = useState(false);
   const [newContactName, setNewContactName] = useState('');
 
@@ -62,6 +74,15 @@ const Contacts = () => {
       );
     }
 
+    // Category filter
+    if (categoryFilter !== 'all') {
+      if (categoryFilter === 'uncategorized') {
+        result = result.filter(c => !c.label);
+      } else {
+        result = result.filter(c => c.label === categoryFilter);
+      }
+    }
+
     // Source visibility filters
     if (!showApple) {
       result = result.filter(c => !c.hasAppleLink || c.hasGoogleLink);
@@ -74,7 +95,7 @@ const Contacts = () => {
     result.sort((a, b) => a.display_name.localeCompare(b.display_name));
 
     return result;
-  }, [contacts, searchQuery, showApple, showGoogle]);
+  }, [contacts, searchQuery, showApple, showGoogle, categoryFilter]);
 
   const handleAddContact = async () => {
     if (!newContactName.trim()) return;
@@ -89,6 +110,15 @@ const Contacts = () => {
     
     setNewContactName('');
     setShowAddDialog(false);
+  };
+
+  const handleOpenDetail = (contact: ContactWithLinks) => {
+    setSelectedContact(contact);
+    setDetailOpen(true);
+  };
+
+  const handleSaveContact = async (id: string, updates: Partial<ContactWithLinks>) => {
+    return await updateContact(id, updates);
   };
 
   const getSourceBadges = (contact: ContactWithLinks) => {
@@ -159,15 +189,33 @@ const Contacts = () => {
         </div>
 
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-3 animate-fade-in">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search contacts..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
+        <div className="flex flex-col gap-3 animate-fade-in">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search contacts..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+
+            <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+              <SelectTrigger className="w-full sm:w-48">
+                <Filter className="w-4 h-4 mr-2" />
+                <SelectValue placeholder="All categories" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All categories</SelectItem>
+                <SelectItem value="uncategorized">Uncategorized</SelectItem>
+                {categorySettings.map(cat => (
+                  <SelectItem key={cat.id} value={cat.label_name}>
+                    {cat.label_name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           <div className="flex items-center gap-4">
@@ -218,9 +266,9 @@ const Contacts = () => {
                   <UserPlus className="w-4 h-4" />
                   Add Contact
                 </Button>
-              ) : searchQuery ? (
-                <Button variant="outline" onClick={() => setSearchQuery('')}>
-                  Clear search
+              ) : searchQuery || categoryFilter !== 'all' ? (
+                <Button variant="outline" onClick={() => { setSearchQuery(''); setCategoryFilter('all'); }}>
+                  Clear filters
                 </Button>
               ) : undefined
             }
@@ -232,7 +280,7 @@ const Contacts = () => {
                 key={contact.id} 
                 className="p-4 rounded-lg border bg-card hover:bg-muted/50 transition-colors cursor-pointer animate-fade-in"
                 style={{ animationDelay: `${index * 30}ms` }}
-                onClick={() => setSelectedContact(contact)}
+                onClick={() => handleOpenDetail(contact)}
               >
                 <div className="flex items-center gap-4">
                   <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
@@ -243,6 +291,11 @@ const Contacts = () => {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
                       <span className="font-medium truncate">{contact.display_name}</span>
+                      {contact.label && (
+                        <Badge variant="default" className="text-xs">
+                          {contact.label}
+                        </Badge>
+                      )}
                       {getSourceBadges(contact)}
                     </div>
                     <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
@@ -267,97 +320,13 @@ const Contacts = () => {
         )}
 
         {/* Contact Detail Dialog */}
-        <Dialog open={!!selectedContact} onOpenChange={(open) => !open && setSelectedContact(null)}>
-          <DialogContent className="max-w-md">
-            {selectedContact && (
-              <>
-                <DialogHeader>
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center">
-                      <span className="text-2xl font-semibold text-primary">
-                        {selectedContact.display_name.charAt(0).toUpperCase()}
-                      </span>
-                    </div>
-                    <div>
-                      <DialogTitle className="text-xl">{selectedContact.display_name}</DialogTitle>
-                      <div className="flex items-center gap-2 mt-1">
-                        {getSourceBadges(selectedContact)}
-                      </div>
-                    </div>
-                  </div>
-                </DialogHeader>
-
-                <div className="space-y-4 pt-4">
-                  {/* Phones */}
-                  {selectedContact.phones.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Phone Numbers</Label>
-                      {selectedContact.phones.map((phone, i) => (
-                        <div key={i} className="flex items-center gap-2 text-sm">
-                          <Phone className="w-4 h-4 text-muted-foreground" />
-                          <span>{phone.value}</span>
-                          {phone.label && (
-                            <Badge variant="outline" className="text-xs">{phone.label}</Badge>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Emails */}
-                  {selectedContact.emails.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Email Addresses</Label>
-                      {selectedContact.emails.map((email, i) => (
-                        <div key={i} className="flex items-center gap-2 text-sm">
-                          <Mail className="w-4 h-4 text-muted-foreground" />
-                          <span className="truncate">{email.value}</span>
-                          {email.label && (
-                            <Badge variant="outline" className="text-xs">{email.label}</Badge>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  )}
-
-                  {/* Notes */}
-                  {selectedContact.notes && (
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Notes</Label>
-                      <p className="text-sm whitespace-pre-wrap">{selectedContact.notes}</p>
-                    </div>
-                  )}
-
-                  {/* Tags */}
-                  {selectedContact.tags.length > 0 && (
-                    <div className="space-y-2">
-                      <Label className="text-xs text-muted-foreground">Tags</Label>
-                      <div className="flex flex-wrap gap-1">
-                        {selectedContact.tags.map((tag, i) => (
-                          <Badge key={i} variant="secondary">{tag}</Badge>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-4">
-                    <Button 
-                      variant="destructive" 
-                      className="flex-1"
-                      onClick={async () => {
-                        await deleteContact(selectedContact.id);
-                        setSelectedContact(null);
-                      }}
-                    >
-                      Delete
-                    </Button>
-                  </div>
-                </div>
-              </>
-            )}
-          </DialogContent>
-        </Dialog>
+        <ContactDetailDialog
+          open={detailOpen}
+          onOpenChange={setDetailOpen}
+          contact={selectedContact}
+          onSave={handleSaveContact}
+          onDelete={deleteContact}
+        />
 
         {/* Add Contact Dialog */}
         <Dialog open={showAddDialog} onOpenChange={setShowAddDialog}>
