@@ -1,6 +1,7 @@
+import { useState } from 'react';
 import { NavLink } from '@/components/NavLink';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, Users, Settings, Heart, LogOut } from 'lucide-react';
+import { LayoutDashboard, Users, Settings, Heart, LogOut, Loader2 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
@@ -14,10 +15,18 @@ const navItems = [
 export const Navigation = () => {
   const { signOut } = useAuth();
   const navigate = useNavigate();
+  const [isSigningOut, setIsSigningOut] = useState(false);
 
   const handleSignOut = async () => {
-    await signOut();
-    navigate('/');
+    if (isSigningOut) return;
+    
+    setIsSigningOut(true);
+    try {
+      await signOut();
+      navigate('/auth');
+    } finally {
+      setIsSigningOut(false);
+    }
   };
 
   return (
@@ -54,20 +63,30 @@ export const Navigation = () => {
                 variant="ghost"
                 size="sm"
                 onClick={handleSignOut}
+                disabled={isSigningOut}
                 className="text-muted-foreground hover:text-foreground"
               >
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
+                {isSigningOut ? (
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                ) : (
+                  <LogOut className="w-4 h-4 mr-2" />
+                )}
+                {isSigningOut ? 'Signing Out...' : 'Sign Out'}
               </Button>
             </div>
 
             {/* Sign out button - mobile */}
             <button
               onClick={handleSignOut}
-              className="flex flex-col items-center gap-1 px-4 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:hidden"
+              disabled={isSigningOut}
+              className="flex flex-col items-center gap-1 px-4 py-2 rounded-lg text-muted-foreground transition-colors hover:bg-secondary hover:text-foreground md:hidden disabled:opacity-50"
             >
-              <LogOut className="w-5 h-5" />
-              <span className="text-xs">Sign Out</span>
+              {isSigningOut ? (
+                <Loader2 className="w-5 h-5 animate-spin" />
+              ) : (
+                <LogOut className="w-5 h-5" />
+              )}
+              <span className="text-xs">{isSigningOut ? 'Signing Out...' : 'Sign Out'}</span>
             </button>
           </div>
         </div>
