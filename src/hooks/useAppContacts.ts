@@ -137,6 +137,8 @@ export function useAppContacts() {
     if (!user) return null;
 
     try {
+      // Default scheduling fields for new contacts
+      const today = new Date();
       const insertData = {
         user_id: user.id,
         display_name: contactData.display_name,
@@ -147,6 +149,9 @@ export function useAppContacts() {
         notes: contactData.notes,
         tags: contactData.tags,
         source_preference: contactData.source_preference,
+        // Set defaults for scheduling fields
+        cadence_days: contactData.cadence_days ?? 30,
+        next_contact_date: contactData.next_contact_date ?? today.toISOString(),
       };
       
       const { data, error: insertError } = await supabase
@@ -387,27 +392,32 @@ export function useAppContacts() {
     }
   }, [user, contacts, fetchContacts]);
 
-  // Get contacts that are due today or overdue
+  // Get contacts that are due today or overdue (includes unscheduled as a fallback)
   const dueContacts = useMemo(() => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
     return visibleContacts.filter(contact => {
-      // Include if overdue
-      if (contact.next_contact_date && new Date(contact.next_contact_date) <= today) {
-        return true;
+      // Include if scheduled and due/overdue
+      if (contact.next_contact_date) {
+        return new Date(contact.next_contact_date) <= today;
       }
       // Include if birthday is today
       if (contact.birthday) {
         const bday = new Date(contact.birthday);
-        return bday.getMonth() === today.getMonth() && bday.getDate() === today.getDate();
+        if (bday.getMonth() === today.getMonth() && bday.getDate() === today.getDate()) {
+          return true;
+        }
       }
-      return false;
+      // FALLBACK: Include unscheduled contacts (no next_contact_date) so the list isn't empty
+      // This ensures users see contacts until they run the backfill/repair
+      return !contact.next_contact_date;
     }).sort((a, b) => {
-      // Sort by: overdue first, then by next_contact_date
-      const aDate = a.next_contact_date ? new Date(a.next_contact_date) : new Date('9999-12-31');
-      const bDate = b.next_contact_date ? new Date(b.next_contact_date) : new Date('9999-12-31');
-      return aDate.getTime() - bDate.getTime();
+      // Sort by: scheduled contacts first (by date), then unscheduled alphabetically
+      const aDate = a.next_contact_date ? new Date(a.next_contact_date).getTime() : Infinity;
+      const bDate = b.next_contact_date ? new Date(b.next_contact_date).getTime() : Infinity;
+      if (aDate !== bDate) return aDate - bDate;
+      return a.display_name.localeCompare(b.display_name);
     });
   }, [visibleContacts]);
 
