@@ -285,6 +285,9 @@ const Index = () => {
             <p className="text-sm text-muted-foreground">
               {format(new Date(), 'EEEE, MMMM d')}
             </p>
+            <p className="text-xs text-muted-foreground">
+              Automatically generated reminders based on contact frequency, birthdays, and custom dates.
+            </p>
             <h1 className="text-3xl font-bold">Today's Reminders</h1>
             <p className="text-muted-foreground">
               Scheduled follow-ups, birthdays, and check-ins
