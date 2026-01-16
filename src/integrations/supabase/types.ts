@@ -146,6 +146,7 @@ export type Database = {
           source: Database["public"]["Enums"]["contact_source"]
           sync_enabled: boolean
           updated_at: string
+          user_id: string | null
         }
         Insert: {
           app_contact_id: string
@@ -158,6 +159,7 @@ export type Database = {
           source: Database["public"]["Enums"]["contact_source"]
           sync_enabled?: boolean
           updated_at?: string
+          user_id?: string | null
         }
         Update: {
           app_contact_id?: string
@@ -170,6 +172,7 @@ export type Database = {
           source?: Database["public"]["Enums"]["contact_source"]
           sync_enabled?: boolean
           updated_at?: string
+          user_id?: string | null
         }
         Relationships: [
           {
