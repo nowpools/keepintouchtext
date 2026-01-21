@@ -48,10 +48,10 @@ export const AddContactDialog = ({
       return;
     }
 
-    if (!session?.provider_token) {
+    if (!user) {
       toast({
-        title: 'Re-authentication required',
-        description: 'Please sign out and sign in again to add contacts to Google',
+        title: 'Not signed in',
+        description: 'Please sign in to add contacts',
         variant: 'destructive',
       });
       return;
@@ -60,22 +60,51 @@ export const AddContactDialog = ({
     setIsSubmitting(true);
 
     try {
-      const { data, error } = await supabase.functions.invoke('create-google-contact', {
-        body: {
-          accessToken: session.provider_token,
-          userId: user?.id,
-          name: formData.name.trim(),
-          phone: formData.phone.trim() || undefined,
-          email: formData.email.trim() || undefined,
-          notes: formData.notes.trim() || undefined,
-        },
-      });
+      // Check if user has Google integration for optional sync
+      const hasGoogleToken = !!session?.provider_token;
+      
+      // Always insert into local database first
+      const { data: newContact, error: insertError } = await supabase
+        .from('app_contacts')
+        .insert({
+          user_id: user.id,
+          display_name: formData.name.trim(),
+          phones: formData.phone.trim() ? [{ value: formData.phone.trim() }] : [],
+          emails: formData.email.trim() ? [{ value: formData.email.trim() }] : [],
+          notes: formData.notes.trim() || null,
+          cadence_days: 30,
+          next_contact_date: new Date().toISOString(),
+        })
+        .select()
+        .single();
 
-      if (error) throw error;
+      if (insertError) throw insertError;
+
+      // If user has Google integration, also sync to Google Contacts
+      if (hasGoogleToken && newContact) {
+        try {
+          await supabase.functions.invoke('create-google-contact', {
+            body: {
+              accessToken: session.provider_token,
+              userId: user.id,
+              name: formData.name.trim(),
+              phone: formData.phone.trim() || undefined,
+              email: formData.email.trim() || undefined,
+              notes: formData.notes.trim() || undefined,
+              appContactId: newContact.id,
+            },
+          });
+        } catch (syncError) {
+          // Log but don't fail - contact is saved locally
+          console.warn('Failed to sync to Google Contacts:', syncError);
+        }
+      }
 
       toast({
         title: 'Contact added!',
-        description: `${formData.name} has been added to your contacts and synced to Google`,
+        description: hasGoogleToken 
+          ? `${formData.name} has been added and synced to Google` 
+          : `${formData.name} has been added to your contacts`,
       });
 
       // Reset form and close dialog
@@ -104,7 +133,7 @@ export const AddContactDialog = ({
             Add New Contact
           </DialogTitle>
           <DialogDescription>
-            Add a new contact that will sync to your Google Contacts
+            Add a new contact to your list
           </DialogDescription>
         </DialogHeader>
 
