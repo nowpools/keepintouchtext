@@ -88,6 +88,23 @@ const Auth = () => {
     }
   }, [isRecoverySession, user, searchParams, setSearchParams]);
 
+  // Detect successful magic link return (user clicked link in email)
+  useEffect(() => {
+    // If user just arrived with a code param and is now authenticated (not recovery), show success
+    if (user && !isRecoverySession && hasCodeParam && !planFromUrl) {
+      toast({
+        title: 'Signed in successfully!',
+        description: 'Welcome back to Keep In Touch',
+      });
+      // Clear code from URL before navigating
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('code');
+      newParams.delete('state');
+      setSearchParams(newParams, { replace: true });
+      navigate('/dashboard');
+    }
+  }, [user, isRecoverySession, hasCodeParam, planFromUrl, searchParams, setSearchParams, navigate]);
+
   useEffect(() => {
     const handlePostLoginCheckout = async () => {
       // Don't redirect if we're in password update mode
