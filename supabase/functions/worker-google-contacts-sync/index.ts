@@ -139,6 +139,10 @@ serve(async (req) => {
     let totalProcessed = job.progress_done || 0;
     let pagesProcessed = 0;
 
+    // Fetch contact group names once per job (for human-readable labels)
+    const groupNameMap = await fetchContactGroupNames(accessToken);
+    console.log(`Fetched ${groupNameMap.size} contact groups`);
+
     // Process pages
     while (pagesProcessed < MAX_PAGES_PER_TICK) {
       const pageToken = checkpoint.nextPageToken;
@@ -179,7 +183,7 @@ serve(async (req) => {
       console.log(`Received ${connections.length} contacts, nextPageToken: ${nextPageToken ? 'present' : 'none'}`);
 
       // Process contacts
-      const batchResult = await processContactsBatch(supabase, userId, connections);
+      const batchResult = await processContactsBatch(supabase, userId, connections, groupNameMap);
       totalProcessed += batchResult.processed;
 
       // Log batch completion
@@ -321,10 +325,42 @@ async function markJobFailed(supabase: any, jobId: string, errorMessage: string)
   });
 }
 
+async function fetchContactGroupNames(
+  accessToken: string
+): Promise<Map<string, string>> {
+  const groupMap = new Map<string, string>();
+  
+  try {
+    const response = await fetch(
+      'https://people.googleapis.com/v1/contactGroups?pageSize=100',
+      { headers: { Authorization: `Bearer ${accessToken}` } }
+    );
+    
+    if (response.ok) {
+      const data = await response.json();
+      for (const group of data.contactGroups || []) {
+        // Map resource name to display name
+        // e.g., "contactGroups/7d64947c0cb6e6b2" -> "Friends"
+        if (group.resourceName && group.formattedName) {
+          groupMap.set(group.resourceName, group.formattedName);
+        }
+      }
+      console.log(`Loaded ${groupMap.size} contact group names`);
+    } else {
+      console.error('Failed to fetch contact groups:', await response.text());
+    }
+  } catch (error) {
+    console.error('Error fetching contact groups:', error);
+  }
+  
+  return groupMap;
+}
+
 async function processContactsBatch(
   supabase: any,
   userId: string,
-  connections: any[]
+  connections: any[],
+  groupNameMap: Map<string, string>
 ): Promise<{ processed: number; created: number; updated: number }> {
   let processed = 0;
   let created = 0;
@@ -359,15 +395,22 @@ async function processContactsBatch(
       }
     }
 
-    // Extract label from memberships
+    // Extract label from memberships using human-readable group names
     let label: string | null = null;
     if (person.memberships) {
       for (const membership of person.memberships) {
-        const groupName = membership.contactGroupMembership?.contactGroupResourceName;
-        if (groupName) {
-          const labelPart = groupName.split('/').pop();
-          if (labelPart && labelPart !== 'myContacts') {
-            label = labelPart;
+        const groupResourceName = membership.contactGroupMembership?.contactGroupResourceName;
+        if (groupResourceName) {
+          // Skip system groups like myContacts, starred, all
+          if (groupResourceName === 'contactGroups/myContacts' || 
+              groupResourceName === 'contactGroups/starred' ||
+              groupResourceName === 'contactGroups/all') {
+            continue;
+          }
+          // Look up the display name from our group map
+          const groupDisplayName = groupNameMap.get(groupResourceName);
+          if (groupDisplayName) {
+            label = groupDisplayName;
             break;
           }
         }
