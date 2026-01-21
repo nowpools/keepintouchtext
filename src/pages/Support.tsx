@@ -51,6 +51,9 @@ const Support = () => {
           <h1 className="text-3xl sm:text-4xl font-bold text-foreground mb-4">
             Keep In Touch Text — Support
           </h1>
+          <p className="text-sm text-muted-foreground mb-2">
+            This page provides support for the Keep In Touch Text iOS app.
+          </p>
           <p className="text-lg text-muted-foreground max-w-2xl mx-auto">
             We're here to help you stay connected.
           </p>
