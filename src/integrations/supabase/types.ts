@@ -25,6 +25,8 @@ export type Database = {
           emails: Json | null
           family_name: string | null
           given_name: string | null
+          google_etag: string | null
+          google_resource_name: string | null
           id: string
           label: string | null
           last_contacted: string | null
@@ -51,6 +53,8 @@ export type Database = {
           emails?: Json | null
           family_name?: string | null
           given_name?: string | null
+          google_etag?: string | null
+          google_resource_name?: string | null
           id?: string
           label?: string | null
           last_contacted?: string | null
@@ -77,6 +81,8 @@ export type Database = {
           emails?: Json | null
           family_name?: string | null
           given_name?: string | null
+          google_etag?: string | null
+          google_resource_name?: string | null
           id?: string
           label?: string | null
           last_contacted?: string | null
@@ -263,6 +269,83 @@ export type Database = {
           tier?: Database["public"]["Enums"]["subscription_tier"]
           trial_ends_at?: string | null
           trial_started_at?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sync_job_items: {
+        Row: {
+          created_at: string
+          event_type: string
+          id: string
+          job_id: string
+          payload: Json | null
+        }
+        Insert: {
+          created_at?: string
+          event_type: string
+          id?: string
+          job_id: string
+          payload?: Json | null
+        }
+        Update: {
+          created_at?: string
+          event_type?: string
+          id?: string
+          job_id?: string
+          payload?: Json | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sync_job_items_job_id_fkey"
+            columns: ["job_id"]
+            isOneToOne: false
+            referencedRelation: "sync_jobs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      sync_jobs: {
+        Row: {
+          created_at: string
+          error_message: string | null
+          finished_at: string | null
+          id: string
+          job_type: string
+          last_checkpoint: Json | null
+          progress_done: number
+          progress_total_estimate: number | null
+          started_at: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          job_type?: string
+          last_checkpoint?: Json | null
+          progress_done?: number
+          progress_total_estimate?: number | null
+          started_at?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          id?: string
+          job_type?: string
+          last_checkpoint?: Json | null
+          progress_done?: number
+          progress_total_estimate?: number | null
+          started_at?: string | null
+          status?: string
           updated_at?: string
           user_id?: string
         }

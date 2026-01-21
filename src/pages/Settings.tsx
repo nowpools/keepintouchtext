@@ -17,6 +17,8 @@ import { useContacts } from '@/hooks/useContacts';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useContactHistory } from '@/hooks/useContactHistory';
 import { useGoogleContactsIntegration } from '@/hooks/useGoogleContactsIntegration';
+import { useSyncJob } from '@/hooks/useSyncJob';
+import { SyncProgressCard } from '@/components/SyncProgressCard';
 import { SortOrderType, SocialPlatform } from '@/types/contact';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -56,6 +58,14 @@ const Settings = () => {
     syncContacts,
     toggleSyncEnabled,
   } = useGoogleContactsIntegration();
+  
+  const {
+    jobStatus,
+    isStarting: isSyncJobStarting,
+    startSync,
+    cancelSync,
+    clearJob,
+  } = useSyncJob();
   
   const [isExporting, setIsExporting] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -127,21 +137,55 @@ const Settings = () => {
   };
 
   const handleSyncContacts = async () => {
-    try {
-      await syncContacts();
-      await refetchContacts();
-      toast({
-        title: 'Sync complete',
-        description: 'Your Google Contacts have been synced.',
-      });
-    } catch (error: any) {
+    // Use the new background job system
+    const { jobId, error } = await startSync('full');
+    if (error) {
       toast({
         title: 'Sync failed',
-        description: error.message || 'Failed to sync contacts. Please try reconnecting.',
+        description: error.message || 'Failed to start sync. Please try again.',
         variant: 'destructive',
       });
     }
+    // Status updates will come through jobStatus polling
   };
+
+  const handleCancelSync = async () => {
+    const { error } = await cancelSync();
+    if (error) {
+      toast({
+        title: 'Cancel failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sync canceled',
+        description: 'The sync has been stopped.',
+      });
+    }
+  };
+
+  const handleDismissSync = () => {
+    clearJob();
+    refetchContacts();
+  };
+
+  // Show toast when sync completes or fails
+  useEffect(() => {
+    if (jobStatus?.status === 'completed') {
+      toast({
+        title: 'Sync complete',
+        description: `Successfully synced ${jobStatus.progress_done} contacts.`,
+      });
+      refetchContacts();
+    } else if (jobStatus?.status === 'failed') {
+      toast({
+        title: 'Sync failed',
+        description: jobStatus.error_message || 'Something went wrong. Please try again.',
+        variant: 'destructive',
+      });
+    }
+  }, [jobStatus?.status]);
 
   const handleToggleSync = async (enabled: boolean) => {
     try {
@@ -288,33 +332,44 @@ const Settings = () => {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {/* Last synced info */}
-                  {lastSyncedAt && (
+                  {/* Sync Progress Card */}
+                  {jobStatus && (
+                    <SyncProgressCard
+                      jobStatus={jobStatus}
+                      onCancel={handleCancelSync}
+                      onDismiss={handleDismissSync}
+                    />
+                  )}
+
+                  {/* Last synced info - only show when no active job */}
+                  {!jobStatus && lastSyncedAt && (
                     <p className="text-sm text-muted-foreground">
                       Last synced: {formatDistanceToNow(new Date(lastSyncedAt), { addSuffix: true })}
                     </p>
                   )}
 
-                  {/* Action buttons */}
-                  <div className="flex flex-wrap gap-3">
-                    <Button 
-                      variant="outline" 
-                      onClick={handleSyncContacts} 
-                      disabled={isSyncing}
-                      className="gap-2"
-                    >
-                      <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
-                      {isSyncing ? 'Syncing...' : 'Sync Now'}
-                    </Button>
-                    <Button 
-                      variant="ghost" 
-                      onClick={handleDisconnectGoogle}
-                      className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    >
-                      <Unlink className="w-4 h-4" />
-                      Disconnect
-                    </Button>
-                  </div>
+                  {/* Action buttons - only show when no active job */}
+                  {(!jobStatus || ['completed', 'failed', 'canceled'].includes(jobStatus.status)) && (
+                    <div className="flex flex-wrap gap-3">
+                      <Button 
+                        variant="outline" 
+                        onClick={handleSyncContacts} 
+                        disabled={isSyncJobStarting || (jobStatus && ['queued', 'running'].includes(jobStatus.status))}
+                        className="gap-2"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isSyncJobStarting ? 'animate-spin' : ''}`} />
+                        {isSyncJobStarting ? 'Starting...' : 'Sync Now'}
+                      </Button>
+                      <Button 
+                        variant="ghost" 
+                        onClick={handleDisconnectGoogle}
+                        className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                      >
+                        <Unlink className="w-4 h-4" />
+                        Disconnect
+                      </Button>
+                    </div>
+                  )}
 
                   {/* Auto-sync toggle */}
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">

@@ -23,3 +23,15 @@ verify_jwt = true
 
 [functions.google-oauth-callback]
 verify_jwt = false
+
+[functions.start-google-contacts-sync]
+verify_jwt = false
+
+[functions.get-sync-job-status]
+verify_jwt = false
+
+[functions.cancel-sync-job]
+verify_jwt = false
+
+[functions.worker-google-contacts-sync]
+verify_jwt = false
