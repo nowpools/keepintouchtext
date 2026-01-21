@@ -10,10 +10,10 @@ interface AuthContextType {
   isLoading: boolean;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signInWithApple: () => Promise<{ error: Error | null }>;
+  signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
+  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
 }
-
-// Export session for debug panel
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
@@ -146,12 +146,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signInWithApple = async () => {
-    // Apple Sign-In only works on native iOS
+    // Use browser-based OAuth for Capacitor apps
     if (Capacitor.isNativePlatform()) {
       return signInWithAppleNative();
     }
 
-    return { error: new Error('Apple Sign-In is only available on iOS devices') };
+    // Web OAuth flow
+    const redirectUrl = `${window.location.origin}/dashboard`;
+    
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'apple',
+      options: {
+        redirectTo: redirectUrl,
+      },
+    });
+    
+    return { error };
+  };
+
+  const signUp = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: window.location.origin,
+      },
+    });
+    
+    return { error: error as Error | null };
+  };
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+    
+    return { error: error as Error | null };
   };
 
   const signOut = async () => {
@@ -161,16 +192,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setSession(null);
       
       // Sign out from Supabase - use 'local' scope to ensure local storage is cleared
-      // even if the server session is already invalid
       await supabase.auth.signOut({ scope: 'local' });
     } catch (error) {
       console.error('Sign out error:', error);
-      // Even if there's an error, we've already cleared local state
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signInWithGoogle, signInWithApple, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, signInWithGoogle, signInWithApple, signUp, signIn, signOut }}>
       {children}
     </AuthContext.Provider>
   );

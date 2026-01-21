@@ -1,7 +1,6 @@
 import { Capacitor } from '@capacitor/core';
 import { Browser } from '@capacitor/browser';
 import { App as CapacitorApp } from '@capacitor/app';
-import { SignInWithApple, SignInWithAppleOptions, SignInWithAppleResponse } from '@capacitor-community/apple-sign-in';
 import { supabase } from '@/integrations/supabase/client';
 
 // Handle OAuth for Capacitor native apps
@@ -138,10 +137,10 @@ export const setupCapacitorAuth = () => {
   });
 };
 
+// Browser-based OAuth for Google on native platforms
 export const signInWithGoogleNative = async () => {
   console.log('[OAuth] Starting Google sign-in...');
   
-  // Redirect back to a https URL (required), which will then deep-link into the app.
   const redirectUrl = 'https://964d240f-c90b-41c9-9988-8a8968fb6ab0.lovableproject.com/callback';
   console.log('[OAuth] Redirect URL:', redirectUrl);
 
@@ -164,7 +163,6 @@ export const signInWithGoogleNative = async () => {
   }
 
   console.log('[OAuth] OAuth URL generated:', data?.url);
-  console.log('[OAuth] URL length:', data?.url?.length);
 
   if (data?.url) {
     try {
@@ -178,58 +176,46 @@ export const signInWithGoogleNative = async () => {
       console.error('[OAuth] Browser.open() failed:', browserError);
       return { error: browserError as Error };
     }
-  } else {
-    console.warn('[OAuth] No URL returned from signInWithOAuth');
   }
 
   return { error: null };
 };
 
+// Browser-based OAuth for Apple on native platforms
 export const signInWithAppleNative = async () => {
-  if (!Capacitor.isNativePlatform()) {
-    return { error: new Error('Apple Sign-In is only available on iOS devices') };
+  console.log('[OAuth] Starting Apple sign-in...');
+  
+  const redirectUrl = 'https://964d240f-c90b-41c9-9988-8a8968fb6ab0.lovableproject.com/callback';
+  console.log('[OAuth] Redirect URL:', redirectUrl);
+
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'apple',
+    options: {
+      redirectTo: redirectUrl,
+      skipBrowserRedirect: true,
+    },
+  });
+
+  if (error) {
+    console.error('[OAuth] signInWithOAuth error:', error);
+    return { error };
   }
 
-  try {
-    const options: SignInWithAppleOptions = {
-      clientId: 'app.lovable.964d240fc90b41c999888a8968fb6ab0',
-      redirectURI: 'https://byhoziuwsaxpemmyhauo.supabase.co/auth/v1/callback',
-      scopes: 'email name',
-      state: crypto.randomUUID(),
-      nonce: crypto.randomUUID(),
-    };
+  console.log('[OAuth] OAuth URL generated:', data?.url);
 
-    console.log('[Apple OAuth] Starting Sign in with Apple...');
-    const response: SignInWithAppleResponse = await SignInWithApple.authorize(options);
-    console.log('[Apple OAuth] Authorization response received');
-
-    if (!response.response?.identityToken) {
-      console.error('[Apple OAuth] No identity token received');
-      return { error: new Error('No identity token received from Apple') };
+  if (data?.url) {
+    try {
+      console.log('[OAuth] Opening browser...');
+      await Browser.open({
+        url: data.url,
+        presentationStyle: 'fullscreen',
+      });
+      console.log('[OAuth] Browser.open() completed successfully');
+    } catch (browserError) {
+      console.error('[OAuth] Browser.open() failed:', browserError);
+      return { error: browserError as Error };
     }
-
-    console.log('[Apple OAuth] Signing in with Supabase using identity token...');
-    const { data, error } = await supabase.auth.signInWithIdToken({
-      provider: 'apple',
-      token: response.response.identityToken,
-    });
-
-    if (error) {
-      console.error('[Apple OAuth] Supabase sign-in failed:', error);
-      return { error };
-    }
-
-    console.log('[Apple OAuth] Sign-in successful:', !!data.session);
-    return { error: null };
-  } catch (error: any) {
-    // User cancelled the sign-in
-    if (error?.code === 'ERR_CANCELED' || error?.message?.includes('canceled')) {
-      console.log('[Apple OAuth] User cancelled sign-in');
-      return { error: new Error('Sign-in was cancelled') };
-    }
-    
-    console.error('[Apple OAuth] Sign-in error:', error);
-    return { error: error instanceof Error ? error : new Error(error?.message || 'Apple Sign-In failed') };
   }
+
+  return { error: null };
 };
-
