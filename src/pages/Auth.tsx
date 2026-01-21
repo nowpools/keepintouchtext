@@ -7,14 +7,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Sparkles, Calendar, MessageSquare, Loader2, AlertTriangle, RefreshCw, ChevronDown, Bug, Mail } from 'lucide-react';
+import { Sparkles, Calendar, MessageSquare, Loader2, AlertTriangle, RefreshCw, ChevronDown, Bug, Mail, ArrowLeft, Wand2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { STRIPE_PRICES, type BillingInterval } from '@/config/stripe';
 import appIcon from '@/assets/app-icon.png';
 
 const Auth = () => {
-  const { user, session, isLoading, signUp, signIn, signOut } = useAuth();
+  const { user, session, isLoading, signUp, signIn, signInWithMagicLink, resetPassword, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -22,11 +22,12 @@ const Auth = () => {
   const [storageWritable, setStorageWritable] = useState<boolean | null>(null);
   const [authTokenExists, setAuthTokenExists] = useState<boolean | null>(null);
   
-  // Email/password form state
-  const [authMode, setAuthMode] = useState<'signin' | 'signup'>('signin');
+  // Auth mode: 'signin' | 'signup' | 'forgot' | 'magiclink'
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot' | 'magiclink'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [emailSent, setEmailSent] = useState(false);
 
   const planFromUrl = searchParams.get('plan');
   const billingFromUrl = (searchParams.get('billing') || 'yearly') as BillingInterval;
@@ -113,10 +114,53 @@ const Auth = () => {
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!email.trim() || !password.trim()) {
+    if (!email.trim()) {
       toast({
-        title: 'Missing fields',
-        description: 'Please enter both email and password',
+        title: 'Missing email',
+        description: 'Please enter your email address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    // For forgot password and magic link, we only need email
+    if (authMode === 'forgot' || authMode === 'magiclink') {
+      setIsSubmitting(true);
+      try {
+        if (authMode === 'forgot') {
+          const { error } = await resetPassword(email);
+          if (error) throw error;
+          setEmailSent(true);
+          toast({
+            title: 'Password reset email sent',
+            description: 'Check your email for a link to reset your password',
+          });
+        } else {
+          const { error } = await signInWithMagicLink(email);
+          if (error) throw error;
+          setEmailSent(true);
+          toast({
+            title: 'Magic link sent',
+            description: 'Check your email for a link to sign in',
+          });
+        }
+      } catch (error: any) {
+        toast({
+          title: 'Failed to send email',
+          description: error.message,
+          variant: 'destructive',
+        });
+      } finally {
+        setIsSubmitting(false);
+      }
+      return;
+    }
+
+    // For signin and signup, we need both email and password
+    if (!password.trim()) {
+      toast({
+        title: 'Missing password',
+        description: 'Please enter your password',
         variant: 'destructive',
       });
       return;
@@ -155,6 +199,11 @@ const Auth = () => {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const handleModeChange = (newMode: 'signin' | 'signup' | 'forgot' | 'magiclink') => {
+    setAuthMode(newMode);
+    setEmailSent(false);
   };
 
   if (isLoading || isCheckingOut) {
@@ -267,72 +316,152 @@ const Auth = () => {
           </CollapsibleContent>
         </Collapsible>
 
-        {/* Sign In Card */}
+        {/* Auth Card */}
         <Card className="w-full max-w-md animate-fade-in" style={{ animationDelay: '100ms' }}>
           <CardHeader className="text-center">
-            <CardTitle>{authMode === 'signup' ? 'Create Account' : 'Welcome Back'}</CardTitle>
+            <CardTitle>
+              {authMode === 'signup' && 'Create Account'}
+              {authMode === 'signin' && 'Welcome Back'}
+              {authMode === 'forgot' && 'Reset Password'}
+              {authMode === 'magiclink' && 'Magic Link Sign In'}
+            </CardTitle>
             <CardDescription>
-              {authMode === 'signup' 
-                ? 'Sign up to start managing your contacts'
-                : 'Sign in to manage your contacts and stay connected'
-              }
+              {authMode === 'signup' && 'Sign up to start managing your contacts'}
+              {authMode === 'signin' && 'Sign in to manage your contacts and stay connected'}
+              {authMode === 'forgot' && "Enter your email and we'll send you a reset link"}
+              {authMode === 'magiclink' && "Enter your email and we'll send you a sign-in link"}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* Email Form */}
-            <form onSubmit={handleEmailAuth} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  disabled={isSubmitting}
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  disabled={isSubmitting}
-                />
-              </div>
-              
-              <Button 
-                type="submit" 
-                className="w-full gap-2 h-12"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Mail className="w-4 h-4" />
-                )}
-                {authMode === 'signup' ? 'Create Account' : 'Sign In'}
-              </Button>
-              
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
-                  className="text-sm text-primary hover:underline"
+            {emailSent && (authMode === 'forgot' || authMode === 'magiclink') ? (
+              <div className="text-center py-4 space-y-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-2">
+                  <Mail className="w-6 h-6" />
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {authMode === 'forgot' 
+                    ? 'Check your email for a password reset link.' 
+                    : 'Check your email for a magic sign-in link.'}
+                </p>
+                <Button
+                  variant="ghost"
+                  onClick={() => handleModeChange('signin')}
+                  className="gap-2"
                 >
-                  {authMode === 'signin' ? "Don't have an account? Sign up" : 'Already have an account? Sign in'}
-                </button>
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to sign in
+                </Button>
               </div>
-            </form>
+            ) : (
+              <form onSubmit={handleEmailAuth} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <Input
+                    id="email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="you@example.com"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                
+                {(authMode === 'signin' || authMode === 'signup') && (
+                  <div className="space-y-2">
+                    <Label htmlFor="password">Password</Label>
+                    <Input
+                      id="password"
+                      type="password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      disabled={isSubmitting}
+                    />
+                  </div>
+                )}
+                
+                <Button 
+                  type="submit" 
+                  className="w-full gap-2 h-12"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : authMode === 'magiclink' ? (
+                    <Wand2 className="w-4 h-4" />
+                  ) : (
+                    <Mail className="w-4 h-4" />
+                  )}
+                  {authMode === 'signup' && 'Create Account'}
+                  {authMode === 'signin' && 'Sign In'}
+                  {authMode === 'forgot' && 'Send Reset Link'}
+                  {authMode === 'magiclink' && 'Send Magic Link'}
+                </Button>
+                
+                {/* Mode switching links */}
+                <div className="space-y-2 text-center text-sm">
+                  {authMode === 'signin' && (
+                    <>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => handleModeChange('forgot')}
+                          className="text-muted-foreground hover:text-primary hover:underline"
+                        >
+                          Forgot password?
+                        </button>
+                      </div>
+                      <div>
+                        <button
+                          type="button"
+                          onClick={() => handleModeChange('magiclink')}
+                          className="text-muted-foreground hover:text-primary hover:underline"
+                        >
+                          Sign in with magic link instead
+                        </button>
+                      </div>
+                      <div className="pt-2">
+                        <button
+                          type="button"
+                          onClick={() => handleModeChange('signup')}
+                          className="text-primary hover:underline"
+                        >
+                          Don't have an account? Sign up
+                        </button>
+                      </div>
+                    </>
+                  )}
+                  
+                  {authMode === 'signup' && (
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange('signin')}
+                      className="text-primary hover:underline"
+                    >
+                      Already have an account? Sign in
+                    </button>
+                  )}
+                  
+                  {(authMode === 'forgot' || authMode === 'magiclink') && (
+                    <button
+                      type="button"
+                      onClick={() => handleModeChange('signin')}
+                      className="text-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      <ArrowLeft className="w-3 h-3" />
+                      Back to sign in
+                    </button>
+                  )}
+                </div>
+              </form>
+            )}
 
             {/* Privacy Note */}
-            <p className="text-xs text-center text-muted-foreground pt-2">
-              After signing in, you can optionally connect Google Contacts in Settings to import your contacts.
-            </p>
+            {(authMode === 'signin' || authMode === 'signup') && (
+              <p className="text-xs text-center text-muted-foreground pt-2">
+                After signing in, you can optionally connect Google Contacts in Settings to import your contacts.
+              </p>
+            )}
           </CardContent>
         </Card>
 
