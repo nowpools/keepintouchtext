@@ -12,6 +12,7 @@ import Contacts from "./pages/Contacts";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import OAuthCallback from "./pages/OAuthCallback";
+import GoogleCallback from "./pages/GoogleCallback";
 import Privacy from "./pages/Privacy";
 import Terms from "./pages/Terms";
 import Pricing from "./pages/Pricing";
@@ -38,6 +39,7 @@ const AppContent = () => {
           <Route path="/settings" element={<Settings />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/callback" element={<OAuthCallback />} />
+          <Route path="/google-callback" element={<GoogleCallback />} />
           <Route path="/privacy" element={<Privacy />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/support" element={<Support />} />
