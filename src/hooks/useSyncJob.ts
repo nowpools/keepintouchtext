@@ -13,11 +13,18 @@ export interface SyncJobStatus {
   created_at: string;
 }
 
+export type SyncModeType = 'all' | 'phone_only' | 'phone_or_email';
+
+interface StartSyncOptions {
+  mode?: 'full' | 'incremental';
+  syncMode?: SyncModeType;
+}
+
 interface UseSyncJobReturn {
   jobStatus: SyncJobStatus | null;
   isStarting: boolean;
   isPolling: boolean;
-  startSync: (mode?: 'full' | 'incremental') => Promise<{ jobId: string | null; error: Error | null }>;
+  startSync: (options?: StartSyncOptions) => Promise<{ jobId: string | null; error: Error | null }>;
   cancelSync: () => Promise<{ error: Error | null }>;
   clearJob: () => void;
 }
@@ -97,7 +104,8 @@ export function useSyncJob(): UseSyncJobReturn {
     pollIntervalRef.current = setInterval(poll, POLL_INTERVAL_MS);
   }, [fetchJobStatus, stopPolling]);
 
-  const startSync = useCallback(async (mode: 'full' | 'incremental' = 'full'): Promise<{ jobId: string | null; error: Error | null }> => {
+  const startSync = useCallback(async (options: StartSyncOptions = {}): Promise<{ jobId: string | null; error: Error | null }> => {
+    const { mode = 'full', syncMode = 'all' } = options;
     setIsStarting(true);
 
     try {
@@ -107,7 +115,7 @@ export function useSyncJob(): UseSyncJobReturn {
       }
 
       const response = await supabase.functions.invoke('start-google-contacts-sync', {
-        body: { mode },
+        body: { mode, sync_mode: syncMode },
       });
 
       if (response.error) {

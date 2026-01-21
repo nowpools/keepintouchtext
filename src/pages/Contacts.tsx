@@ -197,7 +197,7 @@ const Contacts = () => {
   };
 
   const handleSyncContacts = async () => {
-    const { jobId, error } = await startSync('full');
+    const { jobId, error } = await startSync({ mode: 'full' });
     if (error) {
       toast({
         title: 'Sync failed',

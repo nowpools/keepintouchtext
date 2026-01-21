@@ -43,8 +43,9 @@ serve(async (req) => {
     // Parse request body
     const body = await req.json().catch(() => ({}));
     const mode = body.mode || 'full';
+    const syncMode = body.sync_mode || 'all'; // 'all', 'phone_only', 'phone_or_email'
 
-    console.log(`Starting Google Contacts sync for user: ${userId}, mode: ${mode}`);
+    console.log(`Starting Google Contacts sync for user: ${userId}, mode: ${mode}, sync_mode: ${syncMode}`);
 
     // Use service role for database operations
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
@@ -100,6 +101,9 @@ serve(async (req) => {
           pageSize: 200,
           runId: runId,
           mode: mode,
+        },
+        job_params: {
+          sync_mode: syncMode,
         },
       })
       .select('id, status')
