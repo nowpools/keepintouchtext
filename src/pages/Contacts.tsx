@@ -13,6 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
 import { useSubscription } from '@/hooks/useSubscription';
+import { useGoogleContactsIntegration } from '@/hooks/useGoogleContactsIntegration';
 import { Contact, CadenceType, CADENCE_LABELS } from '@/types/contact';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -49,9 +50,16 @@ const Contacts = () => {
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
   const { features, isTrialActive } = useSubscription();
-  const { contacts, isLoading, isSyncing, syncGoogleContacts, updateContact, markAsContacted, refetch } = useContacts();
+  const { contacts, isLoading, updateContact, markAsContacted, refetch } = useContacts();
   const { categorySettings, isLoading: categoriesLoading } = useCategorySettings();
   const { settings } = useAppSettings();
+  const {
+    isConnected: isGoogleConnected,
+    isConnecting: isGoogleConnecting,
+    isSyncing: isGoogleSyncing,
+    connectGoogleContacts,
+    syncContacts,
+  } = useGoogleContactsIntegration();
   
   const hasBirthdayFeature = features.birthdayField || isTrialActive;
   
@@ -170,6 +178,34 @@ const Contacts = () => {
 
   const handleSendTextComplete = async (contactId: string) => {
     await markAsContacted(contactId);
+  };
+
+  const handleConnectGoogle = async () => {
+    const { error } = await connectGoogleContacts();
+    if (error) {
+      toast({
+        title: 'Connection failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSyncContacts = async () => {
+    try {
+      await syncContacts();
+      await refetch();
+      toast({
+        title: 'Sync complete',
+        description: 'Your Google Contacts have been synced.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Sync failed',
+        description: error.message || 'Failed to sync contacts. Please try reconnecting.',
+        variant: 'destructive',
+      });
+    }
   };
 
   // Bulk selection handlers
@@ -291,17 +327,17 @@ const Contacts = () => {
               )}
             </Button>
             <Button
-              onClick={syncGoogleContacts}
-              disabled={isSyncing}
+              onClick={isGoogleConnected ? handleSyncContacts : handleConnectGoogle}
+              disabled={isGoogleConnecting || isGoogleSyncing}
               variant="outline"
               className="gap-2"
             >
-              {isSyncing ? (
+              {isGoogleConnecting || isGoogleSyncing ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
               ) : (
                 <Cloud className="w-4 h-4" />
               )}
-              {isSyncing ? 'Syncing...' : 'Sync Contacts'}
+              {isGoogleConnecting ? 'Connecting...' : isGoogleSyncing ? 'Syncing...' : isGoogleConnected ? 'Sync Contacts' : 'Connect Google'}
             </Button>
           </div>
         </div>
@@ -412,9 +448,13 @@ const Contacts = () => {
             }
             action={
               contacts.length === 0 ? (
-                <Button onClick={syncGoogleContacts} disabled={isSyncing} className="gap-2">
+                <Button 
+                  onClick={isGoogleConnected ? handleSyncContacts : handleConnectGoogle} 
+                  disabled={isGoogleConnecting || isGoogleSyncing} 
+                  className="gap-2"
+                >
                   <Cloud className="w-4 h-4" />
-                  Sync Google Contacts
+                  {isGoogleConnected ? 'Sync Google Contacts' : 'Connect Google Contacts'}
                 </Button>
               ) : searchQuery ? (
                 <Button variant="outline" onClick={() => setSearchQuery('')}>
