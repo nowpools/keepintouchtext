@@ -26,34 +26,42 @@ const queryClient = new QueryClient();
 // For native apps, skip landing page and go directly to auth
 const isNative = Capacitor.isNativePlatform();
 
+// Inner component that uses routing hooks (must be inside BrowserRouter)
+const AppRoutes = () => {
+  useDeepLinks(); // Handle deep links for native app - must be inside Router
+  
+  return (
+    <Routes>
+      {/* Native apps skip landing, go to auth */}
+      <Route path="/" element={isNative ? <Navigate to="/auth" replace /> : <Landing />} />
+      <Route path="/dashboard" element={<Index />} />
+      {/* Today alias for deep links */}
+      <Route path="/today" element={<Navigate to="/dashboard" replace />} />
+      <Route path="/contacts" element={<Contacts />} />
+      {/* Contact detail for deep links */}
+      <Route path="/contact/:id" element={<ContactDetail />} />
+      <Route path="/settings" element={<Settings />} />
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/callback" element={<OAuthCallback />} />
+      <Route path="/google-callback" element={<GoogleCallback />} />
+      <Route path="/privacy" element={<Privacy />} />
+      <Route path="/terms" element={<Terms />} />
+      <Route path="/support" element={<Support />} />
+      <Route path="/pricing" element={<Pricing />} />
+      <Route path="*" element={<NotFound />} />
+    </Routes>
+  );
+};
+
 const AppContent = () => {
   useIOSSetup();
-  useDeepLinks(); // Handle deep links for native app
   
   return (
     <>
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          {/* Native apps skip landing, go to auth */}
-          <Route path="/" element={isNative ? <Navigate to="/auth" replace /> : <Landing />} />
-          <Route path="/dashboard" element={<Index />} />
-          {/* Today alias for deep links */}
-          <Route path="/today" element={<Navigate to="/dashboard" replace />} />
-          <Route path="/contacts" element={<Contacts />} />
-          {/* Contact detail for deep links */}
-          <Route path="/contact/:id" element={<ContactDetail />} />
-          <Route path="/settings" element={<Settings />} />
-          <Route path="/auth" element={<Auth />} />
-          <Route path="/callback" element={<OAuthCallback />} />
-          <Route path="/google-callback" element={<GoogleCallback />} />
-          <Route path="/privacy" element={<Privacy />} />
-          <Route path="/terms" element={<Terms />} />
-          <Route path="/support" element={<Support />} />
-          <Route path="/pricing" element={<Pricing />} />
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AppRoutes />
       </BrowserRouter>
     </>
   );
