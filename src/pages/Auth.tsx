@@ -7,14 +7,14 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { Sparkles, Calendar, MessageSquare, Loader2, AlertTriangle, RefreshCw, ChevronDown, Bug, Mail, ArrowLeft, Wand2 } from 'lucide-react';
+import { Sparkles, Calendar, MessageSquare, Loader2, AlertTriangle, RefreshCw, ChevronDown, Bug, Mail, ArrowLeft, Wand2, Lock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { STRIPE_PRICES, type BillingInterval } from '@/config/stripe';
 import appIcon from '@/assets/app-icon.png';
 
 const Auth = () => {
-  const { user, session, isLoading, signUp, signIn, signInWithMagicLink, resetPassword, signOut } = useAuth();
+  const { user, session, isLoading, isRecoverySession, signUp, signIn, signInWithMagicLink, resetPassword, updatePassword, clearRecoverySession, signOut } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [isCheckingOut, setIsCheckingOut] = useState(false);
@@ -22,12 +22,14 @@ const Auth = () => {
   const [storageWritable, setStorageWritable] = useState<boolean | null>(null);
   const [authTokenExists, setAuthTokenExists] = useState<boolean | null>(null);
   
-  // Auth mode: 'signin' | 'signup' | 'forgot' | 'magiclink'
-  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot' | 'magiclink'>('signin');
+  // Auth mode: 'signin' | 'signup' | 'forgot' | 'magiclink' | 'updatePassword'
+  const [authMode, setAuthMode] = useState<'signin' | 'signup' | 'forgot' | 'magiclink' | 'updatePassword'>('signin');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [emailSent, setEmailSent] = useState(false);
+  const [passwordUpdated, setPasswordUpdated] = useState(false);
 
   const planFromUrl = searchParams.get('plan');
   const billingFromUrl = (searchParams.get('billing') || 'yearly') as BillingInterval;
@@ -75,8 +77,24 @@ const Auth = () => {
     setSearchParams(newParams, { replace: true });
   };
 
+  // Detect recovery session (user clicked password reset link)
+  useEffect(() => {
+    if (isRecoverySession && user) {
+      setAuthMode('updatePassword');
+      // Clear the mode param from URL
+      const newParams = new URLSearchParams(searchParams);
+      newParams.delete('mode');
+      setSearchParams(newParams, { replace: true });
+    }
+  }, [isRecoverySession, user, searchParams, setSearchParams]);
+
   useEffect(() => {
     const handlePostLoginCheckout = async () => {
+      // Don't redirect if we're in password update mode
+      if (authMode === 'updatePassword' || isRecoverySession) {
+        return;
+      }
+      
       if (user && !isLoading && planFromUrl && (planFromUrl === 'pro' || planFromUrl === 'business')) {
         setIsCheckingOut(true);
         try {
@@ -109,7 +127,7 @@ const Auth = () => {
     };
 
     handlePostLoginCheckout();
-  }, [user, isLoading, navigate, planFromUrl, billingFromUrl]);
+  }, [user, isLoading, navigate, planFromUrl, billingFromUrl, authMode, isRecoverySession]);
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,9 +219,66 @@ const Auth = () => {
     }
   };
 
+  const handlePasswordUpdate = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!password.trim()) {
+      toast({
+        title: 'Missing password',
+        description: 'Please enter your new password',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (password.length < 6) {
+      toast({
+        title: 'Password too short',
+        description: 'Password must be at least 6 characters',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      toast({
+        title: 'Passwords do not match',
+        description: 'Please make sure both passwords are the same',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsSubmitting(true);
+
+    try {
+      const { error } = await updatePassword(password);
+      if (error) throw error;
+      
+      setPasswordUpdated(true);
+      toast({
+        title: 'Password updated!',
+        description: 'Your password has been changed successfully',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Failed to update password',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   const handleModeChange = (newMode: 'signin' | 'signup' | 'forgot' | 'magiclink') => {
     setAuthMode(newMode);
     setEmailSent(false);
+  };
+
+  const handleContinueToDashboard = () => {
+    clearRecoverySession();
+    navigate('/dashboard');
   };
 
   if (isLoading || isCheckingOut) {
@@ -324,16 +399,75 @@ const Auth = () => {
               {authMode === 'signin' && 'Welcome Back'}
               {authMode === 'forgot' && 'Reset Password'}
               {authMode === 'magiclink' && 'Magic Link Sign In'}
+              {authMode === 'updatePassword' && 'Set New Password'}
             </CardTitle>
             <CardDescription>
               {authMode === 'signup' && 'Sign up to start managing your contacts'}
               {authMode === 'signin' && 'Sign in to manage your contacts and stay connected'}
               {authMode === 'forgot' && "Enter your email and we'll send you a reset link"}
               {authMode === 'magiclink' && "Enter your email and we'll send you a sign-in link"}
+              {authMode === 'updatePassword' && 'Enter your new password below'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {emailSent && (authMode === 'forgot' || authMode === 'magiclink') ? (
+            {/* Password Updated Success */}
+            {authMode === 'updatePassword' && passwordUpdated ? (
+              <div className="text-center py-4 space-y-4">
+                <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-2">
+                  <Lock className="w-6 h-6" />
+                </div>
+                <p className="font-medium">Password updated successfully!</p>
+                <p className="text-sm text-muted-foreground">
+                  You can now use your new password to sign in.
+                </p>
+                <Button
+                  onClick={handleContinueToDashboard}
+                  className="gap-2"
+                >
+                  Continue to Dashboard
+                </Button>
+              </div>
+            ) : authMode === 'updatePassword' ? (
+              /* Password Update Form */
+              <form onSubmit={handlePasswordUpdate} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="password">New Password</Label>
+                  <Input
+                    id="password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm New Password</Label>
+                  <Input
+                    id="confirmPassword"
+                    type="password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="••••••••"
+                    disabled={isSubmitting}
+                  />
+                </div>
+                
+                <Button 
+                  type="submit" 
+                  className="w-full gap-2 h-12"
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Lock className="w-4 h-4" />
+                  )}
+                  Update Password
+                </Button>
+              </form>
+            ) : emailSent && (authMode === 'forgot' || authMode === 'magiclink') ? (
               <div className="text-center py-4 space-y-4">
                 <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-primary/10 text-primary mb-2">
                   <Mail className="w-6 h-6" />
