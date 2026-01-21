@@ -9,14 +9,16 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
-import { RefreshCw, MessageSquare, Calendar, Users, Check, ExternalLink, Plus, Trash2, Tag, Loader2, Calculator, Shuffle, SortAsc, Share2, Linkedin, Twitter, Youtube, Facebook, Instagram, Github, MessageCircle, Send, Camera, Hash, Download, Lock } from 'lucide-react';
+import { RefreshCw, MessageSquare, Calendar, Users, Check, ExternalLink, Plus, Trash2, Tag, Loader2, Calculator, Shuffle, SortAsc, Share2, Linkedin, Twitter, Youtube, Facebook, Instagram, Github, MessageCircle, Send, Camera, Hash, Download, Lock, Link, Unlink, Info, CheckCircle2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
 import { useAppSettings } from '@/hooks/useAppSettings';
 import { useContacts } from '@/hooks/useContacts';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useContactHistory } from '@/hooks/useContactHistory';
+import { useGoogleContactsIntegration } from '@/hooks/useGoogleContactsIntegration';
 import { SortOrderType, SocialPlatform } from '@/types/contact';
+import { formatDistanceToNow } from 'date-fns';
 
 const SOCIAL_PLATFORMS: { key: SocialPlatform; name: string; icon: React.ComponentType<{ className?: string }>; color: string }[] = [
   { key: 'linkedin', name: 'LinkedIn', icon: Linkedin, color: 'text-[#0A66C2]' },
@@ -40,11 +42,21 @@ const Settings = () => {
   const { toast } = useToast();
   const { categorySettings, isLoading: isLoadingCategories, updateCategorySetting, addCategorySetting, deleteCategorySetting } = useCategorySettings();
   const { settings, updateSettings, updateMaxDailyContacts, updateSortOrder, toggleSocialPlatform } = useAppSettings();
-  const { contacts } = useContacts();
+  const { contacts, refetch: refetchContacts } = useContacts();
   const { features, tier, isTrialActive, daysLeftInTrial } = useSubscription();
   const { exportContactHistory } = useContactHistory();
+  const { 
+    isConnected, 
+    isConnecting, 
+    isSyncing, 
+    lastSyncedAt, 
+    syncEnabled,
+    connectGoogleContacts, 
+    disconnectGoogleContacts, 
+    syncContacts,
+    toggleSyncEnabled,
+  } = useGoogleContactsIntegration();
   
-  const [isSyncing, setIsSyncing] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isAddingCategory, setIsAddingCategory] = useState(false);
   const [newCategory, setNewCategory] = useState({ name: '', description: '', cadenceDays: 30 });
@@ -87,7 +99,67 @@ const Settings = () => {
     })).filter(b => b.count > 0);
   }, [contacts, categorySettings]);
 
-  const handleSync = async () => { setIsSyncing(true); await new Promise(r => setTimeout(r, 2000)); setIsSyncing(false); toast({ title: "Sync complete", description: "Your Google Contacts have been synced." }); };
+  const handleConnectGoogle = async () => {
+    const { error } = await connectGoogleContacts();
+    if (error) {
+      toast({
+        title: 'Connection failed',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleDisconnectGoogle = async () => {
+    try {
+      await disconnectGoogleContacts();
+      toast({
+        title: 'Disconnected',
+        description: 'Google Contacts has been disconnected.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Disconnect failed',
+        description: error.message || 'Failed to disconnect Google Contacts',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleSyncContacts = async () => {
+    try {
+      await syncContacts();
+      await refetchContacts();
+      toast({
+        title: 'Sync complete',
+        description: 'Your Google Contacts have been synced.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Sync failed',
+        description: error.message || 'Failed to sync contacts. Please try reconnecting.',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const handleToggleSync = async (enabled: boolean) => {
+    try {
+      await toggleSyncEnabled(enabled);
+      toast({
+        title: enabled ? 'Auto-sync enabled' : 'Auto-sync disabled',
+        description: enabled 
+          ? 'Contacts will be synced periodically.' 
+          : 'Contacts will only sync manually.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Failed to update setting',
+        description: error.message,
+        variant: 'destructive',
+      });
+    }
+  };
   
   const handleDailyContactsChange = (value: string) => { 
     setDailyContactsInput(value); 
@@ -166,16 +238,107 @@ const Settings = () => {
           </div>
         </Card>
 
+        {/* Google Contacts Integration */}
         <Card className="p-6 animate-fade-in">
           <div className="flex items-start gap-4">
-            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0"><Users className="w-5 h-5 text-primary" /></div>
+            <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+              <Users className="w-5 h-5 text-primary" />
+            </div>
             <div className="flex-1 space-y-4">
-              <div><h3 className="font-semibold">Google Contacts</h3><p className="text-sm text-muted-foreground">Connect to sync your contacts and their categories</p></div>
-              <div className="flex flex-col sm:flex-row gap-3">
-                <Button variant="outline" onClick={handleSync} disabled={isSyncing} className="gap-2"><RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />{isSyncing ? 'Syncing...' : 'Sync Now'}</Button>
-                <Button variant="ghost" className="gap-2"><ExternalLink className="w-4 h-4" />Manage in Google</Button>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold">Google Contacts</h3>
+                  {isConnected && (
+                    <Badge variant="secondary" className="gap-1">
+                      <CheckCircle2 className="w-3 h-3" />
+                      Connected
+                    </Badge>
+                  )}
+                </div>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {isConnected 
+                    ? 'Import and sync your contacts from Google Contacts.'
+                    : 'Connect Google Contacts to import your contacts. This is optional – you can add contacts manually.'
+                  }
+                </p>
               </div>
-              <p className="text-xs text-muted-foreground">Last synced: Just now (demo mode)</p>
+
+              {!isConnected ? (
+                <div className="space-y-4">
+                  <Button 
+                    onClick={handleConnectGoogle} 
+                    disabled={isConnecting}
+                    className="gap-2"
+                  >
+                    {isConnecting ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Link className="w-4 h-4" />
+                    )}
+                    {isConnecting ? 'Connecting...' : 'Connect Google Contacts'}
+                  </Button>
+
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                    <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground">
+                      Google authorization is used only to access your contacts for import/sync. 
+                      This is <strong>not</strong> used to create or sign in to your account.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {/* Last synced info */}
+                  {lastSyncedAt && (
+                    <p className="text-sm text-muted-foreground">
+                      Last synced: {formatDistanceToNow(new Date(lastSyncedAt), { addSuffix: true })}
+                    </p>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex flex-wrap gap-3">
+                    <Button 
+                      variant="outline" 
+                      onClick={handleSyncContacts} 
+                      disabled={isSyncing}
+                      className="gap-2"
+                    >
+                      <RefreshCw className={`w-4 h-4 ${isSyncing ? 'animate-spin' : ''}`} />
+                      {isSyncing ? 'Syncing...' : 'Sync Now'}
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      onClick={handleDisconnectGoogle}
+                      className="gap-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                    >
+                      <Unlink className="w-4 h-4" />
+                      Disconnect
+                    </Button>
+                  </div>
+
+                  {/* Auto-sync toggle */}
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="auto-sync" className="text-sm font-medium">Keep contacts synced</Label>
+                      <p className="text-xs text-muted-foreground">Periodically sync your Google Contacts</p>
+                    </div>
+                    <Switch 
+                      id="auto-sync"
+                      checked={syncEnabled}
+                      onCheckedChange={handleToggleSync}
+                    />
+                  </div>
+
+                  {/* Privacy note */}
+                  <div className="flex items-start gap-2 p-3 rounded-lg bg-muted/50">
+                    <Info className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5" />
+                    <p className="text-xs text-muted-foreground">
+                      Google authorization is used only to access your contacts for import/sync. 
+                      This is <strong>not</strong> used for login or account creation.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </Card>
