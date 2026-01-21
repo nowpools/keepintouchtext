@@ -6,10 +6,13 @@ interface AuthContextType {
   user: User | null;
   session: Session | null;
   isLoading: boolean;
+  isRecoverySession: boolean;
   signUp: (email: string, password: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithMagicLink: (email: string) => Promise<{ error: Error | null }>;
   resetPassword: (email: string) => Promise<{ error: Error | null }>;
+  updatePassword: (newPassword: string) => Promise<{ error: Error | null }>;
+  clearRecoverySession: () => void;
   signOut: () => Promise<void>;
 }
 
@@ -19,6 +22,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecoverySession, setIsRecoverySession] = useState(false);
 
   useEffect(() => {
     // Set up auth state listener FIRST
@@ -27,6 +31,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } = supabase.auth.onAuthStateChange((event, session) => {
       setSession(session);
       setUser(session?.user ?? null);
+      
+      // Detect PASSWORD_RECOVERY event - this means user clicked the reset link
+      if (event === 'PASSWORD_RECOVERY') {
+        setIsRecoverySession(true);
+      }
     });
 
     const initialize = async () => {
@@ -113,6 +122,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
+  const updatePassword = async (newPassword: string) => {
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
+    
+    if (!error) {
+      // Clear recovery state after successful password update
+      setIsRecoverySession(false);
+    }
+    
+    return { error: error as Error | null };
+  };
+
+  const clearRecoverySession = () => {
+    setIsRecoverySession(false);
+  };
+
   const signOut = async () => {
     try {
       // Clear local state immediately
@@ -127,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, isLoading, signUp, signIn, signInWithMagicLink, resetPassword, signOut }}>
+    <AuthContext.Provider value={{ user, session, isLoading, isRecoverySession, signUp, signIn, signInWithMagicLink, resetPassword, updatePassword, clearRecoverySession, signOut }}>
       {children}
     </AuthContext.Provider>
   );
