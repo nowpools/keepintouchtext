@@ -38,7 +38,7 @@ serve(async (req) => {
       client_id: clientId,
       redirect_uri: redirectUrl,
       response_type: 'code',
-      scope: 'https://www.googleapis.com/auth/contacts.readonly',
+      scope: 'https://www.googleapis.com/auth/contacts',
       access_type: 'offline',
       prompt: 'consent', // Force consent to always get refresh token
       state: state,
