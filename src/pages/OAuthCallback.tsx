@@ -39,10 +39,10 @@ export default function OAuthCallback() {
       <article className="w-full max-w-md">
         <Card>
           <CardHeader>
-            <CardTitle>{hasError ? "Sign-in Issue" : "Returning to the app"}</CardTitle>
+            <CardTitle>{hasError ? "Connection Issue" : "Connecting Google Contacts"}</CardTitle>
             <CardDescription>
               {hasError 
-                ? "There was a problem signing in. Please try again."
+                ? "There was a problem connecting. Please try again."
                 : "If you don't get prompted to open the app, tap the button below."
               }
             </CardDescription>
@@ -51,12 +51,12 @@ export default function OAuthCallback() {
             {hasError ? (
               <div className="flex items-center gap-3 text-sm text-destructive">
                 <AlertCircle className="h-4 w-4" />
-                {errorMessage || "Authentication failed"}
+                {errorMessage || "Connection failed"}
               </div>
             ) : (
               <div className="flex items-center gap-3 text-sm text-muted-foreground">
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Finishing sign-in…
+                Finishing connection…
               </div>
             )}
 

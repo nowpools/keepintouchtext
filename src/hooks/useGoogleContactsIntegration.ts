@@ -22,20 +22,22 @@ async function storeGoogleTokens(userId: string, providerToken: string, provider
   try {
     console.log('Storing Google tokens for user:', userId);
     
-    const updates: Record<string, unknown> = {
-      google_access_token: providerToken,
-      google_token_expiry: new Date(Date.now() + 3600 * 1000).toISOString(), // 1 hour from now
-      updated_at: new Date().toISOString(),
-    };
-    
-    if (providerRefreshToken) {
-      updates.google_refresh_token = providerRefreshToken;
-    }
+    const tokenExpiry = new Date(Date.now() + 3600 * 1000).toISOString(); // 1 hour from now
+    const now = new Date().toISOString();
 
+    // Use upsert to handle both new and existing rows
     const { error } = await supabase
       .from('user_integrations')
-      .update(updates)
-      .eq('user_id', userId);
+      .upsert({
+        user_id: userId,
+        google_access_token: providerToken,
+        google_refresh_token: providerRefreshToken ?? null,
+        google_token_expiry: tokenExpiry,
+        updated_at: now,
+      }, { 
+        onConflict: 'user_id',
+        ignoreDuplicates: false 
+      });
     
     if (error) {
       console.error('Failed to store Google tokens:', error);
@@ -89,10 +91,10 @@ export function useGoogleContactsIntegration(): GoogleContactsIntegration {
     refreshStatus();
   }, [refreshStatus]);
 
-  // Listen for OAuth callback when returning from Google
+  // Listen for OAuth callback when returning from Google (linkIdentity triggers USER_UPDATED)
   useEffect(() => {
     const handleAuthChange = async (event: string, newSession: any) => {
-      if (event === 'SIGNED_IN' && newSession?.provider_token && user) {
+      if ((event === 'USER_UPDATED' || event === 'SIGNED_IN') && newSession?.provider_token && user) {
         // Store the tokens
         await storeGoogleTokens(user.id, newSession.provider_token, newSession.provider_refresh_token);
         await refreshStatus();
@@ -104,6 +106,29 @@ export function useGoogleContactsIntegration(): GoogleContactsIntegration {
     return () => subscription.unsubscribe();
   }, [user, refreshStatus]);
 
+  // Fallback: Parse tokens from URL hash when returning from OAuth
+  useEffect(() => {
+    const handleOAuthReturn = async () => {
+      const hash = window.location.hash;
+      if (hash && user) {
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        
+        if (accessToken) {
+          console.log('Found OAuth tokens in URL hash, storing...');
+          await storeGoogleTokens(user.id, accessToken, refreshToken || undefined);
+          await refreshStatus();
+          setIsConnecting(false);
+          // Clean up URL
+          window.history.replaceState({}, '', window.location.pathname);
+        }
+      }
+    };
+
+    handleOAuthReturn();
+  }, [user, refreshStatus]);
+
   const connectGoogleContacts = async (): Promise<{ error: Error | null }> => {
     if (!user) {
       return { error: new Error('Must be signed in to connect Google Contacts') };
@@ -112,42 +137,12 @@ export function useGoogleContactsIntegration(): GoogleContactsIntegration {
     setIsConnecting(true);
 
     try {
-      // Use native OAuth flow for Capacitor apps
-      if (Capacitor.isNativePlatform()) {
-        const redirectUrl = 'https://964d240f-c90b-41c9-9988-8a8968fb6ab0.lovableproject.com/callback';
-        
-        const { data, error } = await supabase.auth.signInWithOAuth({
-          provider: 'google',
-          options: {
-            redirectTo: redirectUrl,
-            scopes: 'https://www.googleapis.com/auth/contacts.readonly',
-            queryParams: {
-              access_type: 'offline',
-              prompt: 'consent',
-            },
-            skipBrowserRedirect: true,
-          },
-        });
+      // Use linkIdentity to add Google to existing account (not signInWithOAuth)
+      const redirectUrl = Capacitor.isNativePlatform()
+        ? 'https://964d240f-c90b-41c9-9988-8a8968fb6ab0.lovableproject.com/callback'
+        : `${window.location.origin}/settings`;
 
-        if (error) {
-          setIsConnecting(false);
-          return { error };
-        }
-
-        if (data?.url) {
-          await Browser.open({ 
-            url: data.url,
-            presentationStyle: 'fullscreen',
-          });
-        }
-
-        return { error: null };
-      }
-
-      // Web OAuth flow
-      const redirectUrl = `${window.location.origin}/settings`;
-      
-      const { error } = await supabase.auth.signInWithOAuth({
+      const { data, error } = await supabase.auth.linkIdentity({
         provider: 'google',
         options: {
           redirectTo: redirectUrl,
@@ -158,10 +153,18 @@ export function useGoogleContactsIntegration(): GoogleContactsIntegration {
           },
         },
       });
-      
+
       if (error) {
         setIsConnecting(false);
         return { error };
+      }
+
+      // For native: open browser manually
+      if (Capacitor.isNativePlatform() && data?.url) {
+        await Browser.open({
+          url: data.url,
+          presentationStyle: 'fullscreen',
+        });
       }
 
       return { error: null };
