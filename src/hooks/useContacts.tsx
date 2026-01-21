@@ -229,8 +229,8 @@ export function useContacts() {
     
     if (!accessToken) {
       toast({
-        title: 'Re-authentication required',
-        description: 'Please sign out and sign in again to sync contacts',
+        title: 'Google Contacts not connected',
+        description: 'Please reconnect Google Contacts in Settings to sync',
         variant: 'destructive',
       });
       return;

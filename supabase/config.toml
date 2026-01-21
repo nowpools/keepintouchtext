@@ -17,3 +17,9 @@ verify_jwt = true
 
 [functions.refresh-google-token]
 verify_jwt = true
+
+[functions.google-oauth-url]
+verify_jwt = true
+
+[functions.google-oauth-callback]
+verify_jwt = false

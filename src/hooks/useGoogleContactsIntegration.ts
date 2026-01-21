@@ -137,34 +137,34 @@ export function useGoogleContactsIntegration(): GoogleContactsIntegration {
     setIsConnecting(true);
 
     try {
-      // Use linkIdentity to add Google to existing account (not signInWithOAuth)
+      // Use custom OAuth flow to properly capture tokens
       const redirectUrl = Capacitor.isNativePlatform()
-        ? 'https://964d240f-c90b-41c9-9988-8a8968fb6ab0.lovableproject.com/callback'
-        : `${window.location.origin}/settings`;
+        ? 'https://keepintouchtext.com/google-callback'
+        : `${window.location.origin}/google-callback`;
 
-      const { data, error } = await supabase.auth.linkIdentity({
-        provider: 'google',
-        options: {
-          redirectTo: redirectUrl,
-          scopes: 'https://www.googleapis.com/auth/contacts.readonly',
-          queryParams: {
-            access_type: 'offline',
-            prompt: 'consent',
-          },
-        },
+      // Get the OAuth URL from our edge function
+      const { data, error } = await supabase.functions.invoke('google-oauth-url', {
+        body: { userId: user.id, redirectUrl },
       });
 
-      if (error) {
+      if (error || data?.error) {
         setIsConnecting(false);
-        return { error };
+        return { error: new Error(data?.error || error?.message || 'Failed to start OAuth') };
       }
 
-      // For native: open browser manually
-      if (Capacitor.isNativePlatform() && data?.url) {
+      if (!data?.url) {
+        setIsConnecting(false);
+        return { error: new Error('No OAuth URL received') };
+      }
+
+      // Redirect to Google OAuth
+      if (Capacitor.isNativePlatform()) {
         await Browser.open({
           url: data.url,
           presentationStyle: 'fullscreen',
         });
+      } else {
+        window.location.href = data.url;
       }
 
       return { error: null };
