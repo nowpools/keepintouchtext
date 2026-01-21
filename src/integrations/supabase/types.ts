@@ -190,6 +190,33 @@ export type Database = {
           },
         ]
       }
+      device_tokens: {
+        Row: {
+          created_at: string | null
+          id: string
+          platform: string
+          token: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          platform?: string
+          token: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          platform?: string
+          token?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       label_settings: {
         Row: {
           cadence_days: number
@@ -481,6 +508,9 @@ export type Database = {
           google_sub: string | null
           id: string
           name: string | null
+          notifications_enabled: boolean | null
+          reminder_days: Json | null
+          reminder_time_local: string | null
           updated_at: string
           user_id: string
         }
@@ -491,6 +521,9 @@ export type Database = {
           google_sub?: string | null
           id?: string
           name?: string | null
+          notifications_enabled?: boolean | null
+          reminder_days?: Json | null
+          reminder_time_local?: string | null
           updated_at?: string
           user_id: string
         }
@@ -501,6 +534,9 @@ export type Database = {
           google_sub?: string | null
           id?: string
           name?: string | null
+          notifications_enabled?: boolean | null
+          reminder_days?: Json | null
+          reminder_time_local?: string | null
           updated_at?: string
           user_id?: string
         }

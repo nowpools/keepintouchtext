@@ -6,9 +6,11 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Capacitor } from "@capacitor/core";
 import { AuthProvider } from "@/hooks/useAuth";
 import { useIOSSetup } from "@/hooks/useIOSSetup";
+import { useDeepLinks } from "@/hooks/useDeepLinks";
 import Landing from "./pages/Landing";
 import Index from "./pages/Index";
 import Contacts from "./pages/Contacts";
+import ContactDetail from "./pages/ContactDetail";
 import Settings from "./pages/Settings";
 import Auth from "./pages/Auth";
 import OAuthCallback from "./pages/OAuthCallback";
@@ -26,6 +28,8 @@ const isNative = Capacitor.isNativePlatform();
 
 const AppContent = () => {
   useIOSSetup();
+  useDeepLinks(); // Handle deep links for native app
+  
   return (
     <>
       <Toaster />
@@ -35,7 +39,11 @@ const AppContent = () => {
           {/* Native apps skip landing, go to auth */}
           <Route path="/" element={isNative ? <Navigate to="/auth" replace /> : <Landing />} />
           <Route path="/dashboard" element={<Index />} />
+          {/* Today alias for deep links */}
+          <Route path="/today" element={<Navigate to="/dashboard" replace />} />
           <Route path="/contacts" element={<Contacts />} />
+          {/* Contact detail for deep links */}
+          <Route path="/contact/:id" element={<ContactDetail />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/auth" element={<Auth />} />
           <Route path="/callback" element={<OAuthCallback />} />
