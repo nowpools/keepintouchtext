@@ -43,15 +43,20 @@ function cadenceTypeToDays(type: CadenceType): number {
   }
 }
 
+const PAGE_SIZE = 100;
+
 export function useContacts() {
   const { user, session } = useAuth();
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactLinks, setContactLinks] = useState<Map<string, DbContactLink>>(new Map());
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [isSyncing, setIsSyncing] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [totalCount, setTotalCount] = useState<number | null>(null);
 
-  const fetchContacts = useCallback(async () => {
-    console.log('[Contacts] fetchContacts called, user:', user?.id || 'no user');
+  const fetchContacts = useCallback(async (append = false) => {
+    console.log('[Contacts] fetchContacts called, user:', user?.id || 'no user', 'append:', append);
     
     if (!user) {
       console.log('[Contacts] No user, clearing contacts');
@@ -61,6 +66,12 @@ export function useContacts() {
     }
 
     try {
+      if (append) {
+        setIsLoadingMore(true);
+      } else {
+        setIsLoading(true);
+      }
+
       // On native platforms, add delay to ensure session is fully established after OAuth
       if (Capacitor.isNativePlatform()) {
         console.log('[Contacts] Native platform detected, waiting for session to settle...');
@@ -93,25 +104,44 @@ export function useContacts() {
       if (!currentSession) {
         console.warn('[Contacts] No valid session after', maxRetries, 'attempts, cannot fetch contacts');
         setIsLoading(false);
+        setIsLoadingMore(false);
         return;
       }
 
       console.log('[Contacts] Fetching contacts for user:', user.id);
       
-      // Fetch contacts
+      // Get total count first (only on initial load)
+      if (!append) {
+        const { count } = await supabase
+          .from('app_contacts')
+          .select('*', { count: 'exact', head: true })
+          .eq('user_id', user.id)
+          .is('deleted_at', null);
+        setTotalCount(count);
+      }
+
+      // Calculate range for pagination
+      const currentOffset = append ? contacts.length : 0;
+      
+      // Fetch contacts with pagination
       const { data: contactsData, error: contactsError } = await supabase
         .from('app_contacts')
         .select('*')
         .eq('user_id', user.id)
         .is('deleted_at', null)
-        .order('display_name');
+        .order('display_name')
+        .range(currentOffset, currentOffset + PAGE_SIZE - 1);
 
       console.log('[Contacts] Query result:', {
         count: contactsData?.length ?? 0,
+        offset: currentOffset,
         error: contactsError?.message,
         errorCode: contactsError?.code,
         errorDetails: contactsError?.details
       });
+      
+      // Check if there are more contacts to load
+      setHasMore((contactsData?.length ?? 0) === PAGE_SIZE);
 
       if (contactsError) throw contactsError;
 
@@ -178,7 +208,12 @@ export function useContacts() {
       });
 
       console.log('[Contacts] Successfully mapped', mappedContacts.length, 'contacts');
-      setContacts(mappedContacts);
+      
+      if (append) {
+        setContacts(prev => [...prev, ...mappedContacts]);
+      } else {
+        setContacts(mappedContacts);
+      }
     } catch (error) {
       console.error('[Contacts] Error fetching contacts:', error);
       console.error('[Contacts] Error details:', JSON.stringify(error, null, 2));
@@ -189,8 +224,14 @@ export function useContacts() {
       });
     } finally {
       setIsLoading(false);
+      setIsLoadingMore(false);
     }
-  }, [user]);
+  }, [user, contacts.length]);
+
+  const loadMore = useCallback(async () => {
+    if (!hasMore || isLoadingMore) return;
+    await fetchContacts(true);
+  }, [fetchContacts, hasMore, isLoadingMore]);
 
   useEffect(() => {
     fetchContacts();
@@ -388,12 +429,16 @@ export function useContacts() {
   return {
     contacts,
     isLoading,
+    isLoadingMore,
     isSyncing,
+    hasMore,
+    totalCount,
     syncGoogleContacts,
     updateContact,
     updateContactWithGoogleSync,
     getContactGoogleId,
     markAsContacted,
-    refetch: fetchContacts,
+    refetch: () => fetchContacts(false),
+    loadMore,
   };
 }

@@ -51,7 +51,7 @@ const Contacts = () => {
   const { toast } = useToast();
   const { user, isLoading: authLoading } = useAuth();
   const { features, isTrialActive } = useSubscription();
-  const { contacts, isLoading, updateContact, markAsContacted, refetch } = useContacts();
+  const { contacts, isLoading, isLoadingMore, hasMore, totalCount, updateContact, markAsContacted, refetch, loadMore } = useContacts();
   const { categorySettings, isLoading: categoriesLoading } = useCategorySettings();
   const { settings } = useAppSettings();
   const {
@@ -304,7 +304,9 @@ const Contacts = () => {
             <div className="space-y-1">
               <h1 className="text-3xl font-bold">Contacts</h1>
               <p className="text-muted-foreground">
-                {contacts.length} people in your network
+                {totalCount !== null 
+                  ? `Showing ${contacts.length} of ${totalCount} contacts`
+                  : `${contacts.length} people in your network`}
               </p>
             </div>
           </div>
@@ -476,7 +478,7 @@ const Contacts = () => {
               <div 
                 key={contact.id} 
                 className="animate-fade-in"
-                style={{ animationDelay: `${index * 50}ms` }}
+                style={{ animationDelay: `${Math.min(index, 10) * 50}ms` }}
               >
                 <ContactListItem 
                   contact={contact} 
@@ -487,6 +489,25 @@ const Contacts = () => {
                 />
               </div>
             ))}
+            
+            {/* Load More Button */}
+            {hasMore && !searchQuery && categoryFilter === 'all' && (
+              <div className="flex justify-center py-6">
+                <Button
+                  variant="outline"
+                  onClick={loadMore}
+                  disabled={isLoadingMore}
+                  className="gap-2"
+                >
+                  {isLoadingMore ? (
+                    <RefreshCw className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <Users className="w-4 h-4" />
+                  )}
+                  {isLoadingMore ? 'Loading...' : 'Load More Contacts'}
+                </Button>
+              </div>
+            )}
           </div>
         )}
 
