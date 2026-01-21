@@ -6,6 +6,7 @@ import { ProgressBar } from '@/components/ProgressBar';
 import { EmptyState } from '@/components/EmptyState';
 import { ContactDetailDialog } from '@/components/ContactDetailDialog';
 import { StreakIndicator } from '@/components/StreakIndicator';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { useAuth } from '@/hooks/useAuth';
 import { useContacts } from '@/hooks/useContacts';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
@@ -13,6 +14,7 @@ import { useAppSettings } from '@/hooks/useAppSettings';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useStreak } from '@/hooks/useStreak';
 import { useContactHistory } from '@/hooks/useContactHistory';
+import { useOfflineContacts } from '@/hooks/useOfflineContacts';
 import { DailyContact, Contact, ContactSurfaceReason } from '@/types/contact';
 import { format, differenceInDays, isSameDay } from 'date-fns';
 import { Sparkles, RefreshCw, Cloud, Cake, Calendar, CalendarClock, Loader2 } from 'lucide-react';
@@ -44,6 +46,7 @@ const Index = () => {
   const { features, isTrialActive, tier } = useSubscription();
   const { currentStreak, longestStreak, recordCompletion } = useStreak();
   const { recordContactCompletion } = useContactHistory();
+  const { isOffline, cacheTimestamp, cacheContacts, getContactsForOffline, hasCachedData } = useOfflineContacts();
   
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set());
@@ -287,6 +290,21 @@ const Index = () => {
   const completedCount = todaysContacts.filter(c => c.isCompleted).length;
   const activeContacts = todaysContacts.filter(c => !c.isSnoozed);
 
+  // Cache contacts for offline use when they're loaded
+  useEffect(() => {
+    if (todaysContacts.length > 0 && !isOffline) {
+      cacheContacts(todaysContacts);
+    }
+  }, [todaysContacts, isOffline, cacheContacts]);
+
+  // Get the contacts to display (online or cached)
+  const displayContacts = useMemo(() => {
+    if (isOffline && hasCachedData) {
+      return getContactsForOffline(todaysContacts);
+    }
+    return todaysContacts;
+  }, [isOffline, hasCachedData, todaysContacts, getContactsForOffline]);
+
   // Show "Finishing sign-in" gate when OAuth is in progress
   if (hasOAuthParams && !user && !oauthSettleTimeout) {
     return (
@@ -313,6 +331,11 @@ const Index = () => {
   return (
     <Layout>
       <div className="space-y-6">
+        {/* Offline Banner */}
+        {isOffline && hasCachedData && (
+          <OfflineBanner cacheTimestamp={cacheTimestamp} />
+        )}
+
         {/* Header */}
         <div className="flex items-start justify-between animate-fade-in">
           <div className="space-y-1">
@@ -338,10 +361,10 @@ const Index = () => {
         </div>
 
         {/* Progress */}
-        {activeContacts.length > 0 && (
+        {displayContacts.filter(c => !c.isSnoozed).length > 0 && (
           <ProgressBar 
-            completed={completedCount} 
-            total={activeContacts.length}
+            completed={displayContacts.filter(c => c.isCompleted).length}
+            total={displayContacts.filter(c => !c.isSnoozed).length}
             className="animate-fade-in" 
           />
         )}
@@ -368,7 +391,7 @@ const Index = () => {
               </Button>
             }
           />
-        ) : todaysContacts.length === 0 ? (
+        ) : displayContacts.length === 0 ? (
           <EmptyState
             icon={<Sparkles className="w-8 h-8 text-primary" />}
             title="All caught up!"
@@ -381,7 +404,7 @@ const Index = () => {
           />
         ) : (
           <div className="space-y-4">
-            {todaysContacts.map((contact, index) => (
+            {displayContacts.map((contact, index) => (
               <div key={contact.id} className="relative">
                 {/* Reason badge */}
                 {contact.surfaceReason !== 'cadence' && (
@@ -407,7 +430,7 @@ const Index = () => {
         )}
 
         {/* Refresh hint */}
-        {!isLoading && todaysContacts.length > 0 && completedCount === activeContacts.length && (
+        {!isLoading && !isOffline && displayContacts.length > 0 && completedCount === activeContacts.length && (
           <div className="text-center py-8 animate-fade-in">
             <p className="text-muted-foreground mb-4">
               Amazing work! Your relationships are thriving. 🌱

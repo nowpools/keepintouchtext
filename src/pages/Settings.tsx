@@ -19,6 +19,7 @@ import { useContactHistory } from '@/hooks/useContactHistory';
 import { useGoogleContactsIntegration } from '@/hooks/useGoogleContactsIntegration';
 import { useSyncJob } from '@/hooks/useSyncJob';
 import { SyncProgressCard } from '@/components/SyncProgressCard';
+import { NotificationSettings } from '@/components/NotificationSettings';
 import { SortOrderType, SocialPlatform } from '@/types/contact';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -282,6 +283,9 @@ const Settings = () => {
             </div>
           </div>
         </Card>
+
+        {/* Push Notifications */}
+        <NotificationSettings canUseNotifications={features.birthdayField || isTrialActive} />
 
         {/* Google Contacts Integration */}
         <Card className="p-6 animate-fade-in">
