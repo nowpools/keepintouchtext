@@ -312,6 +312,7 @@ export type Database = {
           error_message: string | null
           finished_at: string | null
           id: string
+          job_params: Json | null
           job_type: string
           last_checkpoint: Json | null
           progress_done: number
@@ -326,6 +327,7 @@ export type Database = {
           error_message?: string | null
           finished_at?: string | null
           id?: string
+          job_params?: Json | null
           job_type?: string
           last_checkpoint?: Json | null
           progress_done?: number
@@ -340,6 +342,7 @@ export type Database = {
           error_message?: string | null
           finished_at?: string | null
           id?: string
+          job_params?: Json | null
           job_type?: string
           last_checkpoint?: Json | null
           progress_done?: number

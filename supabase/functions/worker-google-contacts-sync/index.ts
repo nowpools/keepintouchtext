@@ -18,6 +18,12 @@ interface Checkpoint {
   lastPerson?: string;
 }
 
+interface JobParams {
+  sync_mode?: 'all' | 'phone_only' | 'phone_or_email';
+}
+
+type SyncMode = 'all' | 'phone_only' | 'phone_or_email';
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -61,7 +67,11 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Processing job ${job.id} for user ${job.user_id}, status: ${job.status}`);
+    // Extract sync mode from job params
+    const jobParams: JobParams = job.job_params || {};
+    const syncMode: SyncMode = jobParams.sync_mode || 'all';
+    
+    console.log(`Processing job ${job.id} for user ${job.user_id}, status: ${job.status}, sync_mode: ${syncMode}`);
 
     const userId = job.user_id;
     let checkpoint: Checkpoint = job.last_checkpoint || {
@@ -182,8 +192,12 @@ serve(async (req) => {
 
       console.log(`Received ${connections.length} contacts, nextPageToken: ${nextPageToken ? 'present' : 'none'}`);
 
+      // Filter contacts based on sync_mode
+      const filteredConnections = filterContactsBySyncMode(connections, syncMode);
+      console.log(`Filtered to ${filteredConnections.length} contacts (sync_mode: ${syncMode})`);
+
       // Process contacts
-      const batchResult = await processContactsBatch(supabase, userId, connections, groupNameMap);
+      const batchResult = await processContactsBatch(supabase, userId, filteredConnections, groupNameMap);
       totalProcessed += batchResult.processed;
 
       // Log batch completion
@@ -322,6 +336,27 @@ async function markJobFailed(supabase: any, jobId: string, errorMessage: string)
     job_id: jobId,
     event_type: 'error',
     payload: { error: errorMessage, timestamp: new Date().toISOString() },
+  });
+}
+
+function filterContactsBySyncMode(connections: any[], syncMode: SyncMode): any[] {
+  if (syncMode === 'all') {
+    return connections;
+  }
+
+  return connections.filter((person) => {
+    const hasPhone = person.phoneNumbers && person.phoneNumbers.length > 0;
+    const hasEmail = person.emailAddresses && person.emailAddresses.length > 0;
+
+    if (syncMode === 'phone_only') {
+      return hasPhone;
+    }
+    
+    if (syncMode === 'phone_or_email') {
+      return hasPhone || hasEmail;
+    }
+
+    return true;
   });
 }
 

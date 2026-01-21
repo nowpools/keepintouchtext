@@ -73,6 +73,7 @@ const Settings = () => {
   const [dailyContactsInput, setDailyContactsInput] = useState<string>(
     settings.maxDailyContacts === null ? '' : settings.maxDailyContacts.toString()
   );
+  const [syncMode, setSyncMode] = useState<'all' | 'phone_only' | 'phone_or_email'>('phone_only');
 
   // Sync input when settings change (e.g., on load)
   useEffect(() => {
@@ -137,8 +138,8 @@ const Settings = () => {
   };
 
   const handleSyncContacts = async () => {
-    // Use the new background job system
-    const { jobId, error } = await startSync('full');
+    // Use the new background job system with sync mode
+    const { jobId, error } = await startSync({ mode: 'full', syncMode });
     if (error) {
       toast({
         title: 'Sync failed',
@@ -346,6 +347,26 @@ const Settings = () => {
                     <p className="text-sm text-muted-foreground">
                       Last synced: {formatDistanceToNow(new Date(lastSyncedAt), { addSuffix: true })}
                     </p>
+                  )}
+
+                  {/* Sync mode selector - only show when no active job */}
+                  {(!jobStatus || ['completed', 'failed', 'canceled'].includes(jobStatus.status)) && (
+                    <div className="space-y-2">
+                      <Label htmlFor="sync-mode" className="text-sm font-medium">Sync options</Label>
+                      <Select value={syncMode} onValueChange={(value: 'all' | 'phone_only' | 'phone_or_email') => setSyncMode(value)}>
+                        <SelectTrigger id="sync-mode" className="w-full sm:w-[280px]">
+                          <SelectValue placeholder="Select sync mode" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="phone_only">Only contacts with phone numbers</SelectItem>
+                          <SelectItem value="phone_or_email">Contacts with phone or email</SelectItem>
+                          <SelectItem value="all">Sync all contacts</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        Choosing a filter makes sync faster and keeps your list cleaner.
+                      </p>
+                    </div>
                   )}
 
                   {/* Action buttons - only show when no active job */}
