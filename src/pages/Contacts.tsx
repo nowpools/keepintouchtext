@@ -14,6 +14,7 @@ import { useContacts } from '@/hooks/useContacts';
 import { useCategorySettings } from '@/hooks/useCategorySettings';
 import { useSubscription } from '@/hooks/useSubscription';
 import { useGoogleContactsIntegration } from '@/hooks/useGoogleContactsIntegration';
+import { useSyncJob } from '@/hooks/useSyncJob';
 import { Contact, CadenceType, CADENCE_LABELS } from '@/types/contact';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -56,10 +57,14 @@ const Contacts = () => {
   const {
     isConnected: isGoogleConnected,
     isConnecting: isGoogleConnecting,
-    isSyncing: isGoogleSyncing,
     connectGoogleContacts,
-    syncContacts,
   } = useGoogleContactsIntegration();
+  
+  const {
+    jobStatus,
+    isStarting: isSyncJobStarting,
+    startSync,
+  } = useSyncJob();
   
   const hasBirthdayFeature = features.birthdayField || isTrialActive;
   
@@ -192,21 +197,23 @@ const Contacts = () => {
   };
 
   const handleSyncContacts = async () => {
-    try {
-      await syncContacts();
-      await refetch();
-      toast({
-        title: 'Sync complete',
-        description: 'Your Google Contacts have been synced.',
-      });
-    } catch (error: any) {
+    const { jobId, error } = await startSync('full');
+    if (error) {
       toast({
         title: 'Sync failed',
-        description: error.message || 'Failed to sync contacts. Please try reconnecting.',
+        description: error.message || 'Failed to start sync. Please try again.',
         variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Sync started',
+        description: 'Your contacts are being synced in the background.',
       });
     }
   };
+
+  // Check if sync is currently running
+  const isSyncing = jobStatus && ['queued', 'running'].includes(jobStatus.status);
 
   // Bulk selection handlers
   const toggleSelectionMode = () => {
@@ -328,16 +335,16 @@ const Contacts = () => {
             </Button>
             <Button
               onClick={isGoogleConnected ? handleSyncContacts : handleConnectGoogle}
-              disabled={isGoogleConnecting || isGoogleSyncing}
+              disabled={isGoogleConnecting || isSyncing || isSyncJobStarting}
               variant="outline"
               className="gap-2"
             >
-              {isGoogleConnecting || isGoogleSyncing ? (
+              {isGoogleConnecting || isSyncing || isSyncJobStarting ? (
                 <RefreshCw className="w-4 h-4 animate-spin" />
               ) : (
                 <Cloud className="w-4 h-4" />
               )}
-              {isGoogleConnecting ? 'Connecting...' : isGoogleSyncing ? 'Syncing...' : isGoogleConnected ? 'Sync Contacts' : 'Connect Google'}
+              {isGoogleConnecting ? 'Connecting...' : (isSyncing || isSyncJobStarting) ? 'Syncing...' : isGoogleConnected ? 'Sync Contacts' : 'Connect Google'}
             </Button>
           </div>
         </div>
@@ -450,7 +457,7 @@ const Contacts = () => {
               contacts.length === 0 ? (
                 <Button 
                   onClick={isGoogleConnected ? handleSyncContacts : handleConnectGoogle} 
-                  disabled={isGoogleConnecting || isGoogleSyncing} 
+                  disabled={isGoogleConnecting || isSyncing || isSyncJobStarting} 
                   className="gap-2"
                 >
                   <Cloud className="w-4 h-4" />
