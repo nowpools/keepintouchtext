@@ -15,6 +15,7 @@ import { useSubscription } from '@/hooks/useSubscription';
 import { useStreak } from '@/hooks/useStreak';
 import { useContactHistory } from '@/hooks/useContactHistory';
 import { useOfflineContacts } from '@/hooks/useOfflineContacts';
+import { useGoogleContactsIntegration } from '@/hooks/useGoogleContactsIntegration';
 import { DailyContact, Contact, ContactSurfaceReason } from '@/types/contact';
 import { format, differenceInDays, isSameDay } from 'date-fns';
 import { Sparkles, RefreshCw, Cloud, Cake, Calendar, CalendarClock, Loader2 } from 'lucide-react';
@@ -40,13 +41,14 @@ const Index = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user, isLoading: authLoading } = useAuth();
-  const { contacts, isLoading, isSyncing, syncGoogleContacts, markAsContacted, updateContact, updateContactWithGoogleSync } = useContacts();
+  const { contacts, isLoading, markAsContacted, updateContact, updateContactWithGoogleSync } = useContacts();
   const { categorySettings } = useCategorySettings();
   const { settings, isLoaded: settingsLoaded } = useAppSettings();
   const { features, isTrialActive, tier } = useSubscription();
   const { currentStreak, longestStreak, recordCompletion } = useStreak();
   const { recordContactCompletion } = useContactHistory();
   const { isOffline, cacheTimestamp, cacheContacts, getContactsForOffline, hasCachedData } = useOfflineContacts();
+  const { isConnected: isGoogleConnected, isConnecting: isGoogleConnecting, connectGoogleContacts } = useGoogleContactsIntegration();
   
   const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
   const [snoozedIds, setSnoozedIds] = useState<Set<string>>(new Set());
@@ -382,13 +384,22 @@ const Index = () => {
         ) : contacts.length === 0 ? (
           <EmptyState
             icon={<Cloud className="w-8 h-8 text-primary" />}
-            title="No contacts synced"
-            description="Sync your Google Contacts to start nurturing your relationships"
+            title="No contacts yet"
+            description="Sync your Google Contacts to get started, or add contacts manually in the Contacts tab."
             action={
-              <Button onClick={syncGoogleContacts} disabled={isSyncing} className="gap-2">
-                {isSyncing ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
-                {isSyncing ? 'Syncing...' : 'Sync Google Contacts'}
-              </Button>
+              <div className="flex flex-col items-center gap-3">
+                <Button 
+                  onClick={() => connectGoogleContacts()} 
+                  disabled={isGoogleConnecting} 
+                  className="gap-2"
+                >
+                  {isGoogleConnecting ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Cloud className="w-4 h-4" />}
+                  {isGoogleConnecting ? 'Connecting...' : 'Sync Google Contacts'}
+                </Button>
+                <Button variant="outline" onClick={() => navigate('/contacts')} className="gap-2">
+                  Add Contacts Manually
+                </Button>
+              </div>
             }
           />
         ) : displayContacts.length === 0 ? (
