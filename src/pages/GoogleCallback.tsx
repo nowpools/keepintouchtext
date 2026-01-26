@@ -21,26 +21,39 @@ export default function GoogleCallback() {
       const state = searchParams.get('state');
       const error = searchParams.get('error');
 
+      console.log('[GoogleOAuth] Callback page loaded', { 
+        hasCode: !!code, 
+        hasState: !!state, 
+        error,
+        fullUrl: window.location.href 
+      });
+
       if (error) {
+        console.error('[GoogleOAuth] Error from Google:', error, searchParams.get('error_description'));
         setStatus('error');
         setErrorMessage(searchParams.get('error_description') || 'Authorization was denied');
         return;
       }
 
       if (!code || !state) {
+        console.error('[GoogleOAuth] Missing code or state');
         setStatus('error');
         setErrorMessage('Missing authorization code or state');
         return;
       }
 
       try {
-        // Determine the redirect URL that was used
-        const redirectUrl = Capacitor.isNativePlatform()
-          ? 'https://keepintouchtext.com/google-callback'
-          : `${window.location.origin}/google-callback`;
+        // Use the same published HTTPS URL for token exchange
+        const redirectUrl = 'https://keepintouchtext.lovable.app/google-callback';
+        console.log('[GoogleOAuth] Callback received, exchanging code with redirect:', redirectUrl);
 
         const { data, error: callbackError } = await supabase.functions.invoke('google-oauth-callback', {
           body: { code, state, redirectUrl },
+        });
+
+        console.log('[GoogleOAuth] Token exchange response:', { 
+          success: data?.success, 
+          error: data?.error || callbackError?.message 
         });
 
         if (callbackError || data?.error) {
@@ -48,6 +61,7 @@ export default function GoogleCallback() {
         }
 
         setStatus('success');
+        console.log('[GoogleOAuth] Google Contacts connected successfully!');
         toast({
           title: 'Google Contacts connected!',
           description: 'You can now sync your contacts from Google.',
@@ -58,7 +72,7 @@ export default function GoogleCallback() {
           navigate('/settings', { replace: true });
         }, 1500);
       } catch (err) {
-        console.error('OAuth callback error:', err);
+        console.error('[GoogleOAuth] Callback error:', err);
         setStatus('error');
         setErrorMessage(err instanceof Error ? err.message : 'Failed to connect Google Contacts');
       }

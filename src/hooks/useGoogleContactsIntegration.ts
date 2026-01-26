@@ -137,10 +137,9 @@ export function useGoogleContactsIntegration(): GoogleContactsIntegration {
     setIsConnecting(true);
 
     try {
-      // Use custom OAuth flow to properly capture tokens
-      const redirectUrl = Capacitor.isNativePlatform()
-        ? 'https://keepintouchtext.com/google-callback'
-        : `${window.location.origin}/google-callback`;
+      // Use published HTTPS URL for OAuth callback (allowed in Google Cloud + Supabase)
+      const redirectUrl = 'https://keepintouchtext.lovable.app/google-callback';
+      console.log('[GoogleOAuth] Starting OAuth flow with redirect:', redirectUrl);
 
       // Get the OAuth URL from our edge function
       const { data, error } = await supabase.functions.invoke('google-oauth-url', {
