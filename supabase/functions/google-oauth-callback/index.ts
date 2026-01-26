@@ -55,7 +55,7 @@ serve(async (req) => {
         code,
         client_id: clientId,
         client_secret: clientSecret,
-        redirect_uri: redirectUrl,
+        redirect_uri: 'https://keepintouchtext.lovable.app/google-callback',
         grant_type: 'authorization_code',
       }),
     });
