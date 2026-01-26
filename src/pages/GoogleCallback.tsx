@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Capacitor } from '@capacitor/core';
 import { supabase } from '@/integrations/supabase/client';
@@ -14,9 +14,18 @@ export default function GoogleCallback() {
   const { user } = useAuth();
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading');
   const [errorMessage, setErrorMessage] = useState('');
+  
+  // Guard to prevent duplicate token exchange requests
+  const isExchangingRef = useRef(false);
 
   useEffect(() => {
     const handleCallback = async () => {
+      // Prevent duplicate calls (React StrictMode, fast re-renders)
+      if (isExchangingRef.current) {
+        console.log('[GoogleOAuth] Token exchange already in progress, skipping');
+        return;
+      }
+
       const code = searchParams.get('code');
       const state = searchParams.get('state');
       const error = searchParams.get('error');
@@ -42,10 +51,13 @@ export default function GoogleCallback() {
         return;
       }
 
+      // Mark as exchanging to prevent duplicates
+      isExchangingRef.current = true;
+
       try {
         // Use the same published HTTPS URL for token exchange
         const redirectUrl = 'https://keepintouchtext.lovable.app/google-callback';
-        console.log('[GoogleOAuth] Callback received, exchanging code with redirect:', redirectUrl);
+        console.log('[GoogleOAuth] Exchanging code (single request):', redirectUrl);
 
         const { data, error: callbackError } = await supabase.functions.invoke('google-oauth-callback', {
           body: { code, state, redirectUrl },
@@ -60,6 +72,8 @@ export default function GoogleCallback() {
           throw new Error(data?.error || callbackError?.message || 'Failed to connect Google');
         }
 
+        // Clear any previous error state before showing success
+        setErrorMessage('');
         setStatus('success');
         console.log('[GoogleOAuth] Google Contacts connected successfully!');
         toast({

@@ -105,6 +105,12 @@ export function useSyncJob(): UseSyncJobReturn {
   }, [fetchJobStatus, stopPolling]);
 
   const startSync = useCallback(async (options: StartSyncOptions = {}): Promise<{ jobId: string | null; error: Error | null }> => {
+    // Prevent duplicate requests if already starting
+    if (isStarting) {
+      console.log('[SyncJob] Already starting sync, ignoring duplicate request');
+      return { jobId: null, error: null };
+    }
+
     const { mode = 'full', syncMode = 'all' } = options;
     setIsStarting(true);
 

@@ -134,6 +134,12 @@ export function useGoogleContactsIntegration(): GoogleContactsIntegration {
       return { error: new Error('Must be signed in to connect Google Contacts') };
     }
 
+    // Prevent duplicate requests if already connecting
+    if (isConnecting) {
+      console.log('[GoogleOAuth] Already connecting, ignoring duplicate request');
+      return { error: null };
+    }
+
     setIsConnecting(true);
 
     try {
