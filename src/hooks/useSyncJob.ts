@@ -35,7 +35,7 @@ export function useSyncJob(): UseSyncJobReturn {
   const [jobStatus, setJobStatus] = useState<SyncJobStatus | null>(null);
   const [isStarting, setIsStarting] = useState(false);
   const [isPolling, setIsPolling] = useState(false);
-  const pollIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const pollIntervalRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Cleanup polling on unmount
   useEffect(() => {

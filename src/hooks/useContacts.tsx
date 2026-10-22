@@ -350,7 +350,7 @@ export function useContacts() {
 
       const { error } = await supabase
         .from('app_contacts')
-        .update(dbUpdates)
+        .update(dbUpdates as never)
         .eq('id', contactId)
         .eq('user_id', user.id);
 
