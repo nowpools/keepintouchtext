@@ -85,7 +85,7 @@ export const SocialUrlEditDialog = ({
   const [editedHandle, setEditedHandle] = useState('');
   const [isFullUrlMode, setIsFullUrlMode] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const Icon = config.icon;
 
   useEffect(() => {
